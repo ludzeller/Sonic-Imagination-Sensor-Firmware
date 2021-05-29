@@ -1,0 +1,55 @@
+/* imag_wifi_winc150x.h
+ * 
+ * imagination sensor firmware
+ * wifi udp interface using ATWINC1500
+ * 
+ * 2021-05 rumori
+ */
+
+#ifndef IMAG_WIFI_WINC150X_H_INCLUDED
+#define IMAG_WIFI_WINC150X_H_INCLUDED
+
+#include "imag_wifi.h"
+
+#include <WiFi101.h>
+#include <WiFiUdp.h>
+
+namespace Imag
+{
+class Wifi_WINC150x : public Wifi
+{
+  public:
+    // constructor
+    Wifi_WINC150x();
+  
+    // Wifi class interface
+    bool initAp (const std::array<byte, 4>& newLocalAddr) override;
+    void updateConnectionState() override;
+    bool isConnected() const override { return state == WL_AP_CONNECTED; }
+    void setTargetAddr (const std::array<byte, 4>& addr) override { targetAddr = IPAddress (addr[0], addr[1], addr[2], addr[3]); }
+    void setTargetPort (short port) override { targetPort = port; }
+    bool sendOsc() override;
+
+  private:
+    void printWifiStatus() const;
+    void printMacAddr (const byte mac[6]) const;
+  
+    // wifi udp object
+    WiFiUDP udp;
+
+    // local ip address
+    IPAddress localAddr;
+
+    // target ip address
+    IPAddress targetAddr;
+
+    // target port
+    short targetPort;
+
+    // connection status
+    int state;
+
+};
+}
+
+#endif // #ifndef IMAG_WIFI_WINC150X_H_INCLUDED
