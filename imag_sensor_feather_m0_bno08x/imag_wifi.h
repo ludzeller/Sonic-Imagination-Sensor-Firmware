@@ -6,8 +6,7 @@
  * 2021-05 rumori
  */
 
-#ifndef IMAG_WIFI_H_INCLUDED
-#define IMAG_WIFI_H_INCLUDED
+#pragma once
 
 #include <array>
 
@@ -56,5 +55,3 @@ class Wifi
 
 };
 }
-
-#endif // #ifndef IMAG_WIFI_H_INCLUDED

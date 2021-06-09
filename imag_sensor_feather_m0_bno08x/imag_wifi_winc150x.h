@@ -6,8 +6,7 @@
  * 2021-05 rumori
  */
 
-#ifndef IMAG_WIFI_WINC150X_H_INCLUDED
-#define IMAG_WIFI_WINC150X_H_INCLUDED
+#pragma once
 
 #include "imag_wifi.h"
 
@@ -51,5 +50,3 @@ class Wifi_WINC150x : public Wifi
 
 };
 }
-
-#endif // #ifndef IMAG_WIFI_WINC150X_H_INCLUDED

@@ -12,7 +12,7 @@
 #define DBG          ;
 #define DBGLN        ;
 #define DBGHEX       ;
-#endif // #ifndef IMAG_WIFI_DEBUG
+#endif // #if ! IMAG_WIFI_DEBUG
 
 using namespace Imag;
 
