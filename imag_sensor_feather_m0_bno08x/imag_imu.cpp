@@ -10,11 +10,58 @@
 
 using namespace Imag;
 
-// osc address to be used for each data type
-const char* Imu::oscAddr[]
+const std::array<const char* const, static_cast<int> (Imu::DataType::total_num)> Imu::oscAddr
 {
-  OscAddress::rotation,  // ROTATION
-  OscAddress::rotation,  // ROTATION_GEO
-  OscAddress::rotation,  // ROTATION_GAME
-  OscAddress::accel_lin  // ACCEL_LINEAR
+  OscAddress::none,     // accel
+  OscAddress::none,     // gyro
+  OscAddress::none,     // mag
+  OscAddress::rotation, // rotation
+  OscAddress::rotation, // rotation_game
+  OscAddress::rotation, // rotation_geo
+  OscAddress::none,     // tap_detect
+  OscAddress::none,     // step_detect
+  OscAddress::none,     // step_count
+  OscAddress::none,     // significant_motion
+  OscAddress::none,     // stability_detect
+  OscAddress::none,     // stability_class
+  OscAddress::none,     // activity_class
+  OscAddress::none      // shake_detect
 };
+
+Imu::Imu()
+  : typesToQuery { DataType::rotation },
+    lastType (DataType::none)
+{
+}
+
+
+bool Imu::setDataTypesToQuery (const std::initializer_list<DataType>& dataTypes)
+{
+  auto res = true;
+
+  typesToQuery.clear();
+  
+  for (auto type : dataTypes)
+  {
+      if (isDataTypeSupported (type))
+	typesToQuery.push_back (type);
+      else
+	res = false;
+  }
+
+  // try to update supported types even if also unsupported were requested
+  return updateDataTypesToQuery() && res;
+}
+
+
+Imu::DataType Imu::nativeIdToDataType (const int id) const
+{
+  const auto& array = getDataTypeToNativeId();
+
+  for (auto i = 0; i < array.size(); ++i)
+    if (array[i] == id)
+      return DataType (i);
+
+  return DataType::none;
+}
+
