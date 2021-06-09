@@ -1,11 +1,11 @@
-/* imag_wifi.cpp
+/* imag_net.cpp
  * 
  * imagination sensor firmware
- * generic wifi udp interface
+ * generic network transport interface
  * 
  * 2021-05 rumori
  */
 
-#include "imag_wifi.h"
+#include "imag_net.h"
 
 using namespace Imag;
