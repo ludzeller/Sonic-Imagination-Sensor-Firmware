@@ -56,11 +56,11 @@ bool Imu::setDataTypesToQuery (const std::initializer_list<DataType>& dataTypes)
 
 Imu::DataType Imu::nativeIdToDataType (const int id) const
 {
-  const auto& array = getDataTypeToNativeId();
+  const auto& map = getDataTypeToNativeIdMap();
 
-  for (auto i = 0; i < array.size(); ++i)
-    if (array[i] == id)
-      return DataType (i);
+  for (auto i = 0; i < map.size(); ++i)
+    if (map[i] == id)
+      return static_cast<DataType> (i);
 
   return DataType::none;
 }

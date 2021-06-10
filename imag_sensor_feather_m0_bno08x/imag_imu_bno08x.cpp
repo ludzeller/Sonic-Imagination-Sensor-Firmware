@@ -17,8 +17,11 @@
 using namespace Imag;
 
 Imu_BNO08x::Imu_BNO08x()
+  : reliability (0),
+    sourceOfReliability (DataType::none),
+    calibrating (false)
 {
-  initDataTypeToNativeIdMap(); // would suffice on first instantiation
+  initDataTypeToNativeIdMap(); // would actually suffice on first instantiation
   queryRates.fill (100); // default
 }
 
@@ -39,7 +42,13 @@ bool Imu_BNO08x::init()
     return false;
   }
 
-  return true;
+  if (! setDefaultAutoCalibration())
+  {
+    DBGLN("Imu_BNO08x: error setting default auto calibration sensors");
+    return false;
+  }
+  
+ return true;
 }
 
 
@@ -52,12 +61,9 @@ bool Imu_BNO08x::available()
     return false;
   }
 
-  // actually query sensor data
+  // actually query sensor data, returns false if none available
   if (! bno08x.getSensorEvent (&sensorValue))
-  {
-    DBGLN("Imu_BNO08x: querying sensor data failed");
     return false;
-  }
 
   // TODO: check for sequence number gap
 
@@ -67,6 +73,10 @@ bool Imu_BNO08x::available()
     DBGLN("Imu_BNO08x: received unknown report type");
     return false;
   }
+
+  // store reliability
+  if (lastType == sourceOfReliability)
+    reliability = sensorValue.status & 0x03;
 
   return true;
 }
@@ -81,10 +91,10 @@ bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
     case DataType::rotation:
     case DataType::rotation_geo:
     case DataType::rotation_game:
-      success &= osc.addFloat (sensorValue.un.rotationVector.real);
       success &= osc.addFloat (sensorValue.un.rotationVector.i);
       success &= osc.addFloat (sensorValue.un.rotationVector.j);
       success &= osc.addFloat (sensorValue.un.rotationVector.k);
+      success &= osc.addFloat (sensorValue.un.rotationVector.real);
       break;
 
     default:
@@ -96,10 +106,50 @@ bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
 }
 
 
+bool Imu_BNO08x::beginCalibration()
+{
+  auto res = disableAllSensors();
+
+  // enable dynamic calibration according to BNO08x Sensor Calibration Procedure document
+  res &= bno08x.setSensorsPerformingDynamicCalibration (SH2_CAL_ACCEL | SH2_CAL_GYRO | SH2_CAL_MAG);
+
+  // enable only sensors according to BNO08x Sensor Calibration Procedure document
+  if (! (bno08x.enableReport (SH2_GAME_ROTATION_VECTOR) &&            // game rotation
+	 bno08x.enableReport (SH2_MAGNETIC_FIELD_CALIBRATED, 20000))) // magnetic field @ 50Hz
+  {
+    res = false;
+    DBGLN("Imu_BNO08x: error enabling sensor reports for calibration");
+  }
+
+  // get reliability from magnetic field
+  sourceOfReliability = DataType::mag;
+
+  if (res)
+    calibrating = true;
+  
+  return res;
+}
+
+
+bool Imu_BNO08x::endCalibration()
+{
+  calibrating = false;
+
+  // save calibration
+  if (! bno08x.saveDynamicCalibrationData())
+  {
+    DBGLN("Imu_BNO08x: error saving dynamic calibration data");
+    return false;
+  }
+
+  // set back to default sensors/auto calibration
+  return updateDataTypesToQuery() && setDefaultAutoCalibration();
+}
+
 void Imu_BNO08x::printCalibrationReliability()
 {
   DBG("Imu_BNO08x: current calibration reliability: ");
-  switch (sensorValue.status & 0x03)
+  switch (reliability)
   {
     case 0:
       DBGLN("Unreliable");
@@ -145,6 +195,30 @@ bool Imu_BNO08x::updateDataTypesToQuery (const std::vector<Imu::DataType>& newTy
   auto res = true;
 
   // disable all sensors
+  res = disableAllSensors();
+
+  // enable requested sensors
+  for (auto type : newTypesToQuery)
+  {
+    if (! bno08x.enableReport (dataTypeToNativeId (type), 1000000 / queryRates[static_cast<int> (type)]))
+    {
+      DBG("Imu_BNO08x: error while enabling sensor for data type "); DBGLN(static_cast<int> (type));
+      res = false;
+    }
+  }
+
+  // get reliability from first type in query list
+  sourceOfReliability = newTypesToQuery.size() > 0 ? newTypesToQuery[0] : DataType::none;
+
+  return res;
+}
+
+
+bool Imu_BNO08x::disableAllSensors()
+{
+  auto res = true;
+
+  // disable all sensors
   for (auto type = 0; type < static_cast<int> (DataType::total_num); ++type)
   {
     if (! bno08x.enableReport (dataTypeToNativeId (static_cast<DataType> (type)), 0))
@@ -154,17 +228,14 @@ bool Imu_BNO08x::updateDataTypesToQuery (const std::vector<Imu::DataType>& newTy
     }
   }
 
-  // enable requested sensors
-  for (auto type : newTypesToQuery)
-  {
-    if (! bno08x.enableReport (dataTypeToNativeId (type), queryRates[static_cast<int> (type)]))
-    {
-      DBG("Imu_BNO08x: error while enabling sensor for data type "); DBGLN(static_cast<int> (type));
-      res = false;
-    }
-  }
-
   return res;
+}
+
+
+bool Imu_BNO08x::setDefaultAutoCalibration()
+{
+  // according to recommendation in BNO08x Sensor Calibration Procedure document
+  return bno08x.setSensorsPerformingDynamicCalibration (SH2_CAL_ACCEL);
 }
 
 

@@ -24,10 +24,12 @@ public:
   bool read() override { return true; }; // already done by available with this sensor
   bool getDataAsOsc (LiteOSCParser& osc) const override;
   
-  // bool beginCalibration() override;
-  // bool endCalibration() override;
+  bool beginCalibration() override;
+  bool endCalibration() override;
+  bool isCalibrating() const override { return calibrating; }
+
   // bool setDataRate (int rate) override;
-  // float getCurrentReliability() const override;
+  float getCurrentReliability() const override { return reliability / 3.0f; }
 
   void printCalibrationReliability();
   bool printSensorsPerformingDynamicCalibration();
@@ -35,9 +37,13 @@ public:
 private:
   bool updateDataTypesToQuery() override { return updateDataTypesToQuery (typesToQuery); }
   bool updateDataTypesToQuery (const std::vector<DataType>& newTypesToQuery);
+  bool disableAllSensors();
 
-  const std::array<int, static_cast<int> (DataType::total_num)>& getDataTypeToNativeId() const override { return dataTypeToNativeIdMap; }
-  
+  const std::array<int, static_cast<int> (DataType::total_num)>& getDataTypeToNativeIdMap() const override { return dataTypeToNativeIdMap; }
+
+  // set default auto calibration mode
+  bool setDefaultAutoCalibration();
+
   // maps Imu::DataType to native sensor ids
   static void initDataTypeToNativeIdMap();
   static std::array<int, static_cast<int> (DataType::total_num)> dataTypeToNativeIdMap;
@@ -51,11 +57,20 @@ private:
   // query rates per data type
   std::array<int, static_cast<int> (DataType::total_num)> queryRates;
 
+  // reliability sent with last matching sensor data
+  int reliability;
+
+  // sensor report type from which to set reliability member
+  DataType sourceOfReliability;
+
   // sensor value sequence
   /* one 8-bit number per available sensor return type
      wastes a few bytes as only a few types are used, but, well...
   */
   std::array<uint8_t, SH2_MAX_SENSOR_ID> sequenceNumbers;
+
+  // calibration mode flag
+  bool calibrating;
 
 }; // class Imu_BNO08x
 

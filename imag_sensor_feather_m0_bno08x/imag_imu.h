@@ -21,8 +21,7 @@ namespace Imag
 namespace OscAddress
 {
   static constexpr auto none       { "/invalid" };
-  static constexpr auto rotation   { "/rotation" };  // rotation as a quaternion: 4 floats [ r, i, j, k ] 
-  static constexpr auto accel_lin  { "/accel_lin" }; // linear acceleration: 3 floats [ x, y, z ]  
+  static constexpr auto rotation   { "/rot" };  // rotation as a quaternion: 4 floats [ i, j, k, r ]
 }
 
 class Imu
@@ -81,11 +80,10 @@ public:
   // get previously queried data as osc message
   virtual bool getDataAsOsc (LiteOSCParser& osc) const = 0;
 
-  // switch sensor to calibration mode
-  virtual bool beginCalibration() { return false; } // not supported by default
-
-  // switch sensor back to normal mode
-  virtual bool endCalibration() { return false; } // not supported by default
+  // sensor calibration methods, not supported by default
+  virtual bool beginCalibration() { return false; }
+  virtual bool endCalibration() { return false; }
+  virtual bool isCalibrating() const { return false; }
 
   // set sensor data rate
   virtual bool setDataRate (int rate) { return false; } // not supported by default
@@ -99,10 +97,10 @@ protected:
   virtual bool updateDataTypesToQuery() = 0;
 
   // get array mapping data types to native sensors ids
-  virtual const std::array<int, static_cast<int> (DataType::total_num)>& getDataTypeToNativeId() const = 0;
+  virtual const std::array<int, static_cast<int> (DataType::total_num)>& getDataTypeToNativeIdMap() const = 0;
 
   // get native id for data type
-  int dataTypeToNativeId (const DataType type) const { return getDataTypeToNativeId().at(static_cast<int> (type)); }
+  int dataTypeToNativeId (const DataType type) const { return getDataTypeToNativeIdMap().at(static_cast<int> (type)); }
 
   // get data type for native id
   DataType nativeIdToDataType (const int id) const;

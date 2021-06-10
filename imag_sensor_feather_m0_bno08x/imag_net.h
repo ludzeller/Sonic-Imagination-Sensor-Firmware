@@ -48,7 +48,7 @@ class Net
     virtual bool sendOsc() = 0;
 
     // return a reference to the osc object
-    LiteOSCParser& getOsc() { return osc; }
+    LiteOSCParser& getOscObject() { return osc; }
 
   protected:
     LiteOSCParser osc;
