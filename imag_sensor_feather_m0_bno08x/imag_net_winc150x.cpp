@@ -1,4 +1,4 @@
-/* imag_wifi_winc150x.cpp
+/* imag_net_winc150x.cpp
  * 
  * imagination sensor firmware
  * wifi udp interface using ATWINC1500
@@ -6,17 +6,17 @@
  * 2021-05 rumori
  */
 
-#include "imag_wifi_winc150x.h"
+#include "imag_net_winc150x.h"
 
-#if ! IMAG_WIFI_DEBUG
+#if ! IMAG_NET_DEBUG
 #define DBG          ;
 #define DBGLN        ;
 #define DBGHEX       ;
-#endif // #ifndef IMAG_WIFI_DEBUG
+#endif // #if ! IMAG_NET_DEBUG
 
 using namespace Imag;
 
-Wifi_WINC150x::Wifi_WINC150x()
+Net_WINC150x::Net_WINC150x()
   : state (WL_IDLE_STATUS)
 {
   // configure pins for Adafruit ATWINC1500 feather
@@ -27,12 +27,12 @@ Wifi_WINC150x::Wifi_WINC150x()
 }
 
 
-bool Wifi_WINC150x::initAp (const std::array<byte, 4>& newLocalAddr)
+bool Net_WINC150x::init (const std::array<byte, 4>& newLocalAddr)
 {
   // check for wifi interface presence
   if (state = WiFi.status() == WL_NO_SHIELD)
   {
-    DBGLN("Wifi_WINC150x: wifi shield not present");
+    DBGLN("Net_WINC150x: wifi shield not present");
     return false;
   }
 
@@ -42,7 +42,7 @@ bool Wifi_WINC150x::initAp (const std::array<byte, 4>& newLocalAddr)
 
   if (state = WiFi.beginAP (Config::wifiSSID, Config::wifiPASS) !=  WL_AP_LISTENING)
   {
-    DBGLN("Wifi_WINC150x: starting access point failed");
+    DBGLN("Net_WINC150x: starting access point failed");
     return false;
   }
 
@@ -53,7 +53,7 @@ bool Wifi_WINC150x::initAp (const std::array<byte, 4>& newLocalAddr)
 }
 
 
-void Wifi_WINC150x::updateConnectionState()
+void Net_WINC150x::updateConnectionState()
 {
   // check if state actually changed
   if (state != WiFi.status())
@@ -65,10 +65,10 @@ void Wifi_WINC150x::updateConnectionState()
     // are we newly connected?
     if (state == WL_AP_CONNECTED)
     {
-#if IMAG_WIFI_DEBUG
+#if IMAG_NET_DEBUG
       byte remoteMac[6];
       WiFi.APClientMacAddress (remoteMac);
-      DBG ("Wifi_WINC150x: Device connected to AP, MAC: ");
+      DBG ("Net_WINC150x: Device connected to AP, MAC: ");
       printMacAddr (remoteMac);
       DBGLN();
 #endif // #ifdef IMAG_WIFI_DEBUG
@@ -84,17 +84,17 @@ void Wifi_WINC150x::updateConnectionState()
     {
       udp.stop();
       digitalWrite (LED_BUILTIN, HIGH);
-      DBGLN("Wifi_WINC150x: Device disconnected from AP");
+      DBGLN("Net_WINC150x: Device disconnected from AP");
     }
   }
 }
 
 
-bool Wifi_WINC150x::sendOsc()
+bool Net_WINC150x::sendOsc()
 {
   if (! isConnected())
   {
-    DBGLN("Wifi_WINC150x: cannot send osc: no peer connected");
+    DBGLN("Net_WINC150x: cannot send osc: no peer connected");
     return false;
   }
 
@@ -103,27 +103,27 @@ bool Wifi_WINC150x::sendOsc()
       udp.endPacket())
     return true;
 
-  DBGLN("Wifi_WINC150x: sending osc failed");
+  DBGLN("Met_WINC150x: sending osc failed");
   return false;
 }
 
 
-void Wifi_WINC150x::printWifiStatus() const
+void Net_WINC150x::printWifiStatus() const
 {
   // print the SSID of the network you're attached to:
-  DBG("Wifi_WINC150x: SSID: "); DBGLN(Config::wifiSSID);
+  DBG("Net_WINC150x: SSID: "); DBGLN(Config::wifiSSID);
 
   // print your WiFi shield's IP address:
-  DBG("Wifi_WINC150x: IP Address: "); DBGLN(IPAddress (WiFi.localIP()));
+  DBG("Net_WINC150x: IP Address: "); DBGLN(IPAddress (WiFi.localIP()));
 
   // print the received signal strength:
-  DBG("Wifi_WINC150x: signal strength (RSSI): "); DBG(WiFi.RSSI()); DBGLN(" dBm");
+  DBG("Net_WINC150x: signal strength (RSSI): "); DBG(WiFi.RSSI()); DBGLN(" dBm");
 }
 
 
-void Wifi_WINC150x::printMacAddr (const byte mac[6]) const
+void Net_WINC150x::printMacAddr (const byte mac[6]) const
 {
-   DBG("Wifi_WINC150x: ");
+   DBG("Net_WINC150x: ");
 
    for (int i = 5; i >= 0; i--)
    {

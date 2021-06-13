@@ -1,13 +1,12 @@
 /* imag_wifi.h
  * 
  * imagination sensor firmware
- * generic wifi udp interface 
+ * generic network transport interface 
  * 
  * 2021-05 rumori
  */
 
-#ifndef IMAG_WIFI_H_INCLUDED
-#define IMAG_WIFI_H_INCLUDED
+#pragma once
 
 #include <array>
 
@@ -20,7 +19,7 @@ using LiteOSCParser = qindesign::osc::LiteOSCParser;
 
 namespace Imag
 {
-class Wifi
+class Net
 {
   public:
     // osc message max dimensions
@@ -28,12 +27,12 @@ class Wifi
     static constexpr auto oscMsgMaxArgs = 8;
 
     // constructor
-    Wifi()
+    Net()
       : osc (oscMsgBuffer, oscMsgMaxArgs)
     { }
 
     // init ap listening
-    virtual bool initAp (const std::array<byte, 4>& newLocalAddr = { 192, 168, 1, 1 }) = 0;
+    virtual bool init (const std::array<byte, 4>& newLocalAddr = { 192, 168, 1, 1 }) = 0;
 
     // update connection state, should be called periodically
     virtual void updateConnectionState() = 0;    
@@ -49,12 +48,10 @@ class Wifi
     virtual bool sendOsc() = 0;
 
     // return a reference to the osc object
-    LiteOSCParser& getOsc() { return osc; }
+    LiteOSCParser& getOscObject() { return osc; }
 
   protected:
     LiteOSCParser osc;
 
 };
 }
-
-#endif // #ifndef IMAG_WIFI_H_INCLUDED

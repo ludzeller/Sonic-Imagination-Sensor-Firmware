@@ -6,8 +6,7 @@
  * 2021-05 rumori
  */
 
-#ifndef ADADFRUIT_BNO08x_EXT_H_INCLUDED
-#define ADADFRUIT_BNO08x_EXT_H_INCLUDED
+#pragma once
 
 #include <Adafruit_BNO08x.h>
 
@@ -23,6 +22,4 @@ class Adafruit_BNO08x_ext : public Adafruit_BNO08x
     uint8_t getSensorsPerformingDynamicCalibration();
 
 
-};
-
-#endif // #ifndef ADADFRUIT_BNO08x_EXT_H_INCLUDED
+}; // class Adafruit_BNO08x_ext
