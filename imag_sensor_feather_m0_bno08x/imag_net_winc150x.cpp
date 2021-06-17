@@ -56,36 +56,35 @@ bool Net_WINC150x::init (const std::array<byte, 4>& newLocalAddr)
 void Net_WINC150x::updateConnectionState()
 {
   // check if state actually changed
-  if (state != WiFi.status())
+  if (state == WiFi.status())
+    return;
+
+  state = WiFi.status();
+  printWifiStatus();
+
+  // are we newly connected?
+  if (state == WL_AP_CONNECTED)
   {
-    state = WiFi.status();
-
-    printWifiStatus();
-
-    // are we newly connected?
-    if (state == WL_AP_CONNECTED)
-    {
 #if IMAG_NET_DEBUG
-      byte remoteMac[6];
-      WiFi.APClientMacAddress (remoteMac);
-      DBG ("Net_WINC150x: Device connected to AP, MAC: ");
-      printMacAddr (remoteMac);
-      DBGLN();
-#endif // #ifdef IMAG_WIFI_DEBUG
+    byte remoteMac[6];
+    WiFi.APClientMacAddress (remoteMac);
+    DBG ("Net_WINC150x: Device connected to AP, MAC: ");
+    printMacAddr (remoteMac);
+    DBGLN();
+#endif // #ifdef IMAG_NET_DEBUG
 
-      // begin udp after short delay to settle
-      delay (1000);
-      udp.begin (Config::localPort);
+    // begin udp after short delay to settle
+    delay (1000);
+    udp.begin (Config::localPort);
 
-      // indicate we are connected
-      digitalWrite (LED_BUILTIN, LOW);
-    }
-    else // not connected anymore
-    {
-      udp.stop();
-      digitalWrite (LED_BUILTIN, HIGH);
-      DBGLN("Net_WINC150x: Device disconnected from AP");
-    }
+    // indicate we are connected
+    digitalWrite (LED_BUILTIN, LOW);
+  }
+  else // not connected anymore
+  {
+    udp.stop();
+    digitalWrite (LED_BUILTIN, HIGH);
+    DBGLN("Net_WINC150x: Device disconnected from AP");
   }
 }
 
@@ -123,8 +122,6 @@ void Net_WINC150x::printWifiStatus() const
 
 void Net_WINC150x::printMacAddr (const byte mac[6]) const
 {
-   DBG("Net_WINC150x: ");
-
    for (int i = 5; i >= 0; i--)
    {
      if (mac[i] < 16)

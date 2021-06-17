@@ -13,9 +13,9 @@
 #include <array>
 
 // enable debugging output?
-#define IMAG_DEBUG      1 // general debug
-#define IMAG_IMU_DEBUG  0 // Imu low-level debug
-#define IMAG_WIFI_DEBUG 0 // Wifi low-level debug
+#define IMAG_DEBUG     1 // general debug
+#define IMAG_IMU_DEBUG 1 // Imu low-level debug
+#define IMAG_NET_DEBUG 1 // Wifi low-level debug
 
 namespace Imag
 {
