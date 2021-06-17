@@ -16,12 +16,36 @@
 
 using namespace Imag;
 
+
+const std::array<int, static_cast<int> (Imu::DataType::total_num)> Imu_BNO08x::dataTypeToNativeIdMap
+{
+  SH2_ACCELEROMETER, // DataType::accel
+  SH2_GYROSCOPE_CALIBRATED, // DataType::gyro
+  SH2_MAGNETIC_FIELD_CALIBRATED, //dataTypeToNativeIdMap[static_cast<int> (DataType::mag)] = 
+  SH2_ROTATION_VECTOR, // dataTypeToNativeIdMap[static_cast<int> (DataType::rotation)] = 
+  SH2_GAME_ROTATION_VECTOR, // dataTypeToNativeIdMap[static_cast<int> (DataType::rotation_game)] = 
+  SH2_GEOMAGNETIC_ROTATION_VECTOR, // dataTypeToNativeIdMap[static_cast<int> (DataType::rotation_geo)] = 
+  SH2_ARVR_STABILIZED_RV, // dataTypeToNativeIdMap[static_cast<int> (DataType::rotation_arvr)] = 
+  SH2_ARVR_STABILIZED_GRV, // dataTypeToNativeIdMap[static_cast<int> (DataType::rotation_game_arvr)] = 
+  SH2_TAP_DETECTOR, // dataTypeToNativeIdMap[static_cast<int> (DataType::tap_detect)] = 
+  SH2_STEP_DETECTOR, // dataTypeToNativeIdMap[static_cast<int> (DataType::step_detect)] = 
+  SH2_STEP_COUNTER, // dataTypeToNativeIdMap[static_cast<int> (DataType::step_count)] = 
+  SH2_SIGNIFICANT_MOTION, // dataTypeToNativeIdMap[static_cast<int> (DataType::significant_motion)] = 
+  SH2_STABILITY_DETECTOR, // dataTypeToNativeIdMap[static_cast<int> (DataType::stability_detect)] = 
+  SH2_STABILITY_CLASSIFIER, // dataTypeToNativeIdMap[static_cast<int> (DataType::stability_class)] = 
+  SH2_PERSONAL_ACTIVITY_CLASSIFIER, // dataTypeToNativeIdMap[static_cast<int> (DataType::activity_class)] = ;
+  SH2_SHAKE_DETECTOR // dataTypeToNativeIdMap[static_cast<int> (DataType::shake_detect)] = 
+};
+
+
 Imu_BNO08x::Imu_BNO08x()
   : reliability (0),
+    accuracy (-1.0f),
     sourceOfReliability (DataType::none),
-    calibrating (false)
+    sourceOfAccuracy (DataType::none),
+    calibrating (false),
+    reorientation { 0.0, 0.0, 0.0, 1.0 }
 {
-  initDataTypeToNativeIdMap(); // would actually suffice on first instantiation
   queryRates.fill (100); // default
 }
 
@@ -35,29 +59,24 @@ bool Imu_BNO08x::init()
     return false;
   }
 
-  // enable reports
-  if (! updateDataTypesToQuery())
-  {
-    DBGLN("Imu_BNO08x: could not set reports");
-    return false;
-  }
-
+  // set sensors which do auto-calibration
+  // putting this in reinit() apparently crashes the sensor when done repeatedly, strange...
   if (! setDefaultAutoCalibration())
   {
     DBGLN("Imu_BNO08x: error setting default auto calibration sensors");
     return false;
   }
-  
- return true;
+
+  return reinit();
 }
 
 
 bool Imu_BNO08x::available()
 {
   // restore reports if sensor was reset
-  if (bno08x.wasReset() && ! updateDataTypesToQuery())
+  if (bno08x.wasReset() && ! reinit())
   {
-    DBGLN("Imu_BNO08x: setting reports after reset failed");
+    DBGLN("Imu_BNO08x: reinit after reset failed");
     return false;
   }
 
@@ -65,6 +84,12 @@ bool Imu_BNO08x::available()
   if (! bno08x.getSensorEvent (&sensorValue))
     return false;
 
+  return true;
+}
+
+
+bool Imu_BNO08x::read()
+{
   // TODO: check for sequence number gap
 
   // set data type
@@ -77,6 +102,17 @@ bool Imu_BNO08x::available()
   // store reliability
   if (lastType == sourceOfReliability)
     reliability = sensorValue.status & 0x03;
+
+  // store accuracy
+  if (lastType == sourceOfAccuracy)
+  {
+    if (lastType == DataType::rotation ||
+        lastType == DataType::rotation_geo ||
+        lastType == DataType::rotation_arvr)
+      accuracy = sensorValue.un.rotationVector.accuracy;
+    else
+      accuracy = -1.0f;
+  }
 
   return true;
 }
@@ -91,7 +127,9 @@ bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
     case DataType::rotation:
     case DataType::rotation_geo:
     case DataType::rotation_game:
-      success &= osc.addFloat (sensorValue.un.rotationVector.i);
+    case DataType::rotation_arvr:
+    case DataType::rotation_game_arvr:
+      success &= osc.addFloat (sensorValue.un.rotationVector.i); // negate for upside down sensor mounting
       success &= osc.addFloat (sensorValue.un.rotationVector.j);
       success &= osc.addFloat (sensorValue.un.rotationVector.k);
       success &= osc.addFloat (sensorValue.un.rotationVector.real);
@@ -106,6 +144,39 @@ bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
 }
 
 
+bool Imu_BNO08x::setTareFull()
+{
+  sh2_TareBasis_t basis = SH2_TARE_BASIS_ROTATION_VECTOR; // default
+
+  if (typesToQuery.size() > 0)
+  {
+    if (typesToQuery[0] == DataType::rotation_game)
+      basis = SH2_TARE_BASIS_GAMING_ROTATION_VECTOR;
+    else if (typesToQuery[0] == DataType::rotation_geo)
+      basis = SH2_TARE_BASIS_GEOMAGNETIC_ROTATION_VECTOR;
+  }
+
+  if (! bno08x.setTare (SH2_TARE_X | SH2_TARE_Y | SH2_TARE_Z, basis))
+  {
+    DBGLN("Imu_BNO08x: error setting tare for level");
+    return false;
+  }
+
+  return true;
+}
+
+
+bool Imu_BNO08x::setReorientation (double x, double y, double z, double w)
+{
+  reorientation.x = x;
+  reorientation.y = y;
+  reorientation.z = z;
+  reorientation.w = w;
+
+  return updateReorientation();
+}
+
+
 bool Imu_BNO08x::beginCalibration()
 {
   auto res = disableAllSensors();
@@ -114,8 +185,8 @@ bool Imu_BNO08x::beginCalibration()
   res &= bno08x.setSensorsPerformingDynamicCalibration (SH2_CAL_ACCEL | SH2_CAL_GYRO | SH2_CAL_MAG);
 
   // enable only sensors according to BNO08x Sensor Calibration Procedure document
-  if (! (bno08x.enableReport (SH2_GAME_ROTATION_VECTOR) &&            // game rotation
-	 bno08x.enableReport (SH2_MAGNETIC_FIELD_CALIBRATED, 20000))) // magnetic field @ 50Hz
+  if (! (bno08x.enableReport (SH2_GAME_ROTATION_VECTOR) &&            // game rotation$
+         bno08x.enableReport (SH2_MAGNETIC_FIELD_CALIBRATED, 20000))) // magnetic field @ 50Hz
   {
     res = false;
     DBGLN("Imu_BNO08x: error enabling sensor reports for calibration");
@@ -142,12 +213,15 @@ bool Imu_BNO08x::endCalibration()
     return false;
   }
 
-  // set back to default sensors/auto calibration
-  return updateDataTypesToQuery() && setDefaultAutoCalibration();
+  // set back to default mode
+  bno08x.softwareReset();
+  return setDefaultAutoCalibration() && reinit();
 }
+
 
 void Imu_BNO08x::printCalibrationReliability()
 {
+#ifdef IMAG_IMU_DEBUG
   DBG("Imu_BNO08x: current calibration reliability: ");
   switch (reliability)
   {
@@ -167,11 +241,13 @@ void Imu_BNO08x::printCalibrationReliability()
       DBGLN("High");
       break;
   }
+#endif // IMAG_IMU_DEBUG
 }
 
 
 bool Imu_BNO08x::printSensorsPerformingDynamicCalibration()
 {
+#ifdef IMAG_IMU_DEBUG
   auto sensors = bno08x.getSensorsPerformingDynamicCalibration();
 
   if (! sensors)
@@ -187,6 +263,29 @@ bool Imu_BNO08x::printSensorsPerformingDynamicCalibration()
   DBG("Imu_BNO08x: Planar       : "); DBGLN(sensors & SH2_CAL_PLANAR ? "on" : "off");
 
   return true;
+#endif // IMAG_IMU_DEBUG
+}
+
+
+bool Imu_BNO08x::reinit()
+{
+  initialised = false;
+
+  // enable reports
+  if (! updateDataTypesToQuery())
+  {
+    DBGLN("Imu_BNO08x: could not set reports");
+    return false;
+  }
+
+  // set reorientation
+  if (! updateReorientation())
+  {
+    DBGLN("Imu_BNO08x: error setting reorientation to sensor");
+    return false;
+  }
+
+  return initialised = true;
 }
 
 
@@ -207,8 +306,9 @@ bool Imu_BNO08x::updateDataTypesToQuery (const std::vector<Imu::DataType>& newTy
     }
   }
 
-  // get reliability from first type in query list
+  // get reliability and accuracy from first type in query list
   sourceOfReliability = newTypesToQuery.size() > 0 ? newTypesToQuery[0] : DataType::none;
+  sourceOfAccuracy = sourceOfReliability;
 
   return res;
 }
@@ -239,24 +339,7 @@ bool Imu_BNO08x::setDefaultAutoCalibration()
 }
 
 
-std::array<int, static_cast<int> (Imu::DataType::total_num)> Imu_BNO08x::dataTypeToNativeIdMap { };
-
-void Imu_BNO08x::initDataTypeToNativeIdMap()
+bool Imu_BNO08x::updateReorientation()
 {
-  dataTypeToNativeIdMap.fill (-1); // not supported by default
-  
-  dataTypeToNativeIdMap[static_cast<int> (DataType::accel)] = SH2_ACCELEROMETER;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::gyro)] = SH2_GYROSCOPE_CALIBRATED;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::mag)] = SH2_MAGNETIC_FIELD_CALIBRATED;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::rotation)] = SH2_ROTATION_VECTOR;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::rotation_game)] = SH2_GAME_ROTATION_VECTOR;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::rotation_geo)] = SH2_GEOMAGNETIC_ROTATION_VECTOR;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::tap_detect)] = SH2_TAP_DETECTOR;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::step_detect)] = SH2_STEP_DETECTOR;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::step_count)] = SH2_STEP_COUNTER;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::significant_motion)] = SH2_SIGNIFICANT_MOTION;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::stability_detect)] = SH2_STABILITY_DETECTOR;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::stability_class)] = SH2_STABILITY_CLASSIFIER;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::activity_class)] = SH2_PERSONAL_ACTIVITY_CLASSIFIER;
-  dataTypeToNativeIdMap[static_cast<int> (DataType::shake_detect)] = SH2_SHAKE_DETECTOR;
+  return sh2_setReorientation (&reorientation) == SH2_OK;
 }

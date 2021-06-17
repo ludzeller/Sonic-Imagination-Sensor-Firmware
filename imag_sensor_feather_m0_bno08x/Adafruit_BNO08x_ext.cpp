@@ -14,6 +14,24 @@ bool Adafruit_BNO08x_ext::softwareReset()
 }
 
 
+bool Adafruit_BNO08x_ext::setTare (uint8_t axes, sh2_TareBasis_t basis)
+{
+  return sh2_setTareNow (axes, basis) == SH2_OK;
+}
+
+
+bool Adafruit_BNO08x_ext::resetTare()
+{
+  return sh2_clearTare() == SH2_OK;  
+}
+
+
+bool Adafruit_BNO08x_ext::saveTare()
+{
+  return sh2_persistTare() == SH2_OK;
+}
+
+
 bool Adafruit_BNO08x_ext::saveDynamicCalibrationData()
 {
   return sh2_saveDcdNow() == SH2_OK;

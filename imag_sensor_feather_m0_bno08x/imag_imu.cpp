@@ -18,6 +18,8 @@ const std::array<const char* const, static_cast<int> (Imu::DataType::total_num)>
   OscAddress::rotation, // rotation
   OscAddress::rotation, // rotation_game
   OscAddress::rotation, // rotation_geo
+  OscAddress::rotation, // rotation_arvr
+  OscAddress::rotation, // rotation_game_arvr
   OscAddress::none,     // tap_detect
   OscAddress::none,     // step_detect
   OscAddress::none,     // step_count
@@ -30,7 +32,8 @@ const std::array<const char* const, static_cast<int> (Imu::DataType::total_num)>
 
 Imu::Imu()
   : typesToQuery { DataType::rotation },
-    lastType (DataType::none)
+    lastType (DataType::none),
+    initialised (false)
 {
 }
 
@@ -43,10 +46,10 @@ bool Imu::setDataTypesToQuery (const std::initializer_list<DataType>& dataTypes)
   
   for (auto type : dataTypes)
   {
-      if (isDataTypeSupported (type))
-	typesToQuery.push_back (type);
-      else
-	res = false;
+    if (isDataTypeSupported (type))
+      typesToQuery.push_back (type);
+    else
+  	  res = false;
   }
 
   // try to update supported types even if also unsupported were requested
@@ -64,4 +67,3 @@ Imu::DataType Imu::nativeIdToDataType (const int id) const
 
   return DataType::none;
 }
-

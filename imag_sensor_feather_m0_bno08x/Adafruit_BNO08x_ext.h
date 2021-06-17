@@ -15,6 +15,12 @@ class Adafruit_BNO08x_ext : public Adafruit_BNO08x
   public:  
     bool softwareReset();
 
+    bool setTare (uint8_t axes, sh2_TareBasis_t basis);
+
+    bool resetTare();
+    
+    bool saveTare();
+
     bool saveDynamicCalibrationData();
     
     bool setSensorsPerformingDynamicCalibration (uint8_t sensors);

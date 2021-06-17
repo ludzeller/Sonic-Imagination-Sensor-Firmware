@@ -37,6 +37,8 @@ public:
       rotation,
       rotation_game,
       rotation_geo,
+      rotation_arvr,
+      rotation_game_arvr,
       tap_detect,
       step_detect,
       step_count,
@@ -80,6 +82,14 @@ public:
   // get previously queried data as osc message
   virtual bool getDataAsOsc (LiteOSCParser& osc) const = 0;
 
+  // tare methods, not supported by default
+  virtual bool setTareFull() { return false; }
+  virtual bool setTareHeading() { return false; }
+  virtual bool setTareTilt() { return false; }
+  virtual bool resetTare() { return false; }
+  virtual bool saveTare() { return false; }
+  virtual bool setReorientation (double x, double y, double z, double w) { return false; }
+
   // sensor calibration methods, not supported by default
   virtual bool beginCalibration() { return false; }
   virtual bool endCalibration() { return false; }
@@ -88,9 +98,13 @@ public:
   // set sensor data rate
   virtual bool setDataRate (int rate) { return false; } // not supported by default
 
-  // get current sensor/fusion reliability
+  // get current sensor/fusion reliability, 0.0..1.0
   virtual float getCurrentReliability() const { return 0.0f; } // not supported by default
 
+  // get current sensor/fusion accuracy, radians, negative if invalid
+  virtual float getCurrentAccuracy() const { return -1.0f; } // not supported by default
+
+  bool isInitialised() const { return initialised; }
 
 protected:
   // set/update data types to query, e.g., after setDataTypesToQuery()
@@ -110,6 +124,9 @@ protected:
 
   // type of last queried data
   DataType lastType;
+
+  // initialised flag
+  bool initialised;
 
 }; // class Imu
 
