@@ -17,7 +17,9 @@
 using namespace Imag;
 
 Net_WINC150x::Net_WINC150x()
-  : state (WL_IDLE_STATUS)
+  : state (WL_IDLE_STATUS),
+    readyToSend (false),
+    udpInitTime (millis()) // just in case
 {
   // configure pins for Adafruit ATWINC1500 feather
   WiFi.setPins (8, 7, 4, 2);
@@ -57,31 +59,46 @@ void Net_WINC150x::updateConnectionState()
 {
   // check if state actually changed
   if (state == WiFi.status())
+  {
+    // are we waiting for the udp init delay?
+    if (state == WL_AP_CONNECTED && ! readyToSend && millis() > udpInitTime)
+    {
+#if IMAG_NET_DEBUG
+      byte remoteMac[6];
+      WiFi.APClientMacAddress (remoteMac);
+      DBG ("Net_WINC150x: Device connected to AP, MAC: ");
+      printMacAddr (remoteMac);
+      DBGLN();
+#endif // IMAG_NET_DEBUG
+
+      udp.begin (Config::localPort);
+      readyToSend = true;
+    }
+
+    // return in any case if state did not change
     return;
+  }
 
   state = WiFi.status();
+
+#if IMAG_NET_DEBUG
   printWifiStatus();
+#endif // IMAG_NET_DEBUG
 
   // are we newly connected?
   if (state == WL_AP_CONNECTED)
   {
-#if IMAG_NET_DEBUG
-    byte remoteMac[6];
-    WiFi.APClientMacAddress (remoteMac);
-    DBG ("Net_WINC150x: Device connected to AP, MAC: ");
-    printMacAddr (remoteMac);
-    DBGLN();
-#endif // #ifdef IMAG_NET_DEBUG
-
-    // begin udp after short delay to settle
-    delay (1000);
-    udp.begin (Config::localPort);
-
+    // set udp init time
+    udpInitTime = millis() + 1000; // 1s from now
+    //delay (1000);
+    //udp.begin (Config::localPort);
+    
     // indicate we are connected
     digitalWrite (LED_BUILTIN, LOW);
   }
   else // not connected anymore
   {
+    readyToSend = false;
     udp.stop();
     digitalWrite (LED_BUILTIN, HIGH);
     DBGLN("Net_WINC150x: Device disconnected from AP");
@@ -102,7 +119,17 @@ bool Net_WINC150x::sendOsc()
       udp.endPacket())
     return true;
 
-  DBGLN("Met_WINC150x: sending osc failed");
+   if (! udp.beginPacket (targetAddr, targetPort))
+    DBGLN("error beginpacket");
+   if (! udp.write (osc.getMessageBuf(), osc.getMessageSize()) == osc.getMessageSize())
+    DBGLN("error write");
+   if (! udp.endPacket())
+   DBGLN("error endpacket");
+   
+    return true;
+
+
+  DBGLN("Net_WINC150x: sending osc failed");
   return false;
 }
 
@@ -127,9 +154,9 @@ void Net_WINC150x::printMacAddr (const byte mac[6]) const
      if (mac[i] < 16)
        DBG("0");
 
-    DBGHEX(mac[i]);
+     DBGHEX(mac[i]);
     
-    if (i > 0)
+     if (i > 0)
       DBG(":");
-  }
+    }
 }

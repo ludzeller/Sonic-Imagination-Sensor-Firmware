@@ -24,7 +24,7 @@ class Net_WINC150x : public Net
     // Wifi class interface
     bool init (const std::array<byte, 4>& newLocalAddr) override;
     void updateConnectionState() override;
-    bool isConnected() const override { return state == WL_AP_CONNECTED; }
+    bool isConnected() const override { return readyToSend; /* state == WL_AP_CONNECTED; */ }
     void setTargetAddr (const std::array<byte, 4>& addr) override { targetAddr = IPAddress (addr[0], addr[1], addr[2], addr[3]); }
     void setTargetPort (short port) override { targetPort = port; }
     bool sendOsc() override;
@@ -48,5 +48,10 @@ class Net_WINC150x : public Net
     // connection status
     int state;
 
+    // ready to send: udp initialised$
+    bool readyToSend;
+
+    // timer counter for udp init delay
+    unsigned long udpInitTime;
 };
 }

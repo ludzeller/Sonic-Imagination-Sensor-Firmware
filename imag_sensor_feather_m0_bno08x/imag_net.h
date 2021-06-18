@@ -52,6 +52,5 @@ class Net
 
   protected:
     LiteOSCParser osc;
-
 };
 }
