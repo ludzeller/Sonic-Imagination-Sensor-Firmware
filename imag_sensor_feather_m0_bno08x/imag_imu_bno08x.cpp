@@ -214,7 +214,6 @@ bool Imu_BNO08x::endCalibration()
   }
 
   // set back to default mode
-  bno08x.softwareReset();
   return setDefaultAutoCalibration() && reinit();
 }
 
