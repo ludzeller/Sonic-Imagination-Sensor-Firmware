@@ -14,6 +14,8 @@
 #include <Adafruit_SSD1306.h>
 #include <EasyButton.h>
 
+// #include <ArduinoLowPower.h>
+
 // should go into separate file
 #define BUTTON_A  9
 #define BUTTON_B  6
@@ -29,7 +31,9 @@ Adafruit_SSD1306 display { 128, 32, &Wire };   // oled display
 
 EasyButton calibButton(BUTTON_C, 35, true, true);
 EasyButton displayButton(BUTTON_A, 35, true, true);
-auto displayTimeOut = millis() + 300000;
+
+static constexpr auto displayAutoOff = 60000UL;
+auto displayTimeOut = millis() + displayAutoOff;
 
 // data types
 static constexpr auto primaryDataType = Imag::Imu::DataType::rotation_arvr;
@@ -54,7 +58,7 @@ void beginCalibration()
   imu.printSensorsPerformingDynamicCalibration();
 
   // reset display timeout
-  displayTimeOut = millis() + 300000;
+  displayTimeOut = millis() + displayAutoOff;
 }
 
 
@@ -67,7 +71,7 @@ void endCalibration()
   imu.printSensorsPerformingDynamicCalibration();
 
   // reset display timeout
-  displayTimeOut = millis() + 300000;
+  displayTimeOut = millis() + displayAutoOff;
 }
 
 
@@ -78,7 +82,7 @@ void toggleDisplay()
   display.display();
 
   // reset display timeout
-  displayTimeOut = millis() + 300000;
+  displayTimeOut = millis() + displayAutoOff;
 }
 
 
@@ -103,7 +107,13 @@ void setup()
   display.println("ImagSens");
   display.setTextSize(1);
   display.println();
+  
+#if IMAG_DEBUG
   display.println("Waiting for serial...");
+#else
+  display.println("Initialising...");
+#endif // IMAG_DEBUG
+  
   display.display();
 
   // init debug serial console in case debugging is enabled
@@ -160,6 +170,9 @@ void loop()
   static auto displayRateTime = now;
   static auto connMsgTime = now;
 
+  // flag for any received data
+  auto dataReceived = false;
+
   // update/check current network status
   net.updateConnectionState();
 
@@ -167,7 +180,7 @@ void loop()
   {
     // output message every 2s
     DBGLN("Waiting for wifi connection...");
-    connMsgTime = now + 2000;
+    connMsgTime += 2000;
   }
 
   // eval buttons
@@ -178,46 +191,19 @@ void loop()
   if (displayOn && now > displayTimeOut)
     toggleDisplay();
 
-//  // check for button press
-//  if (digitalRead (BUTTON_A) == LOW)
-//  {
-//    imu.beginCalibration();
-//    imu.printSensorsPerformingDynamicCalibration();
-//  }
-//  else if (digitalRead (BUTTON_B) == LOW)
-//  {
-//    imu.endCalibration();
-//    imu.printSensorsPerformingDynamicCalibration();
-//  }
-//  else if (digitalRead (BUTTON_C) == LOW)
-//  {
-//    DBGLN("Setting tare of all axes");
-//    imu.setTareFull();
-//  }
-
   // read sensor data and send
-  if (imu.available())
+  while (imu.available())
   {
     if (! imu.read())
     {
       DBGLN("failure reading sensor data");
-      return;
+      break;
     }
+
+    dataReceived = true;
 
     // accumulate reliability and accuracy for smoothing
-
-    if ((imu.isCalibrating() && imu.getLastDataType() == Imag::Imu::DataType::mag))
-    {
-      // imu.printCalibrationReliability();
-
-      reliabilitySum -= reliability[smoothIndex];
-      reliability[smoothIndex] = imu.getCurrentReliability();
-      reliabilitySum += reliability[smoothIndex];
-
-      smoothIndex = (smoothIndex + 1) % smoothLen;
-    }
-
-    else if (imu.getLastDataType() == primaryDataType)
+    if (imu.getLastDataType() == primaryDataType)
     {
       reliabilitySum -= reliability[smoothIndex];
       reliability[smoothIndex] = imu.getCurrentReliability();
@@ -229,85 +215,101 @@ void loop()
       
       smoothIndex = (smoothIndex + 1) % smoothLen;
     }
-
-
-    // time for display update?
-    if (now > displayRateTime)
+    else if ((imu.isCalibrating() && imu.getLastDataType() == Imag::Imu::DataType::mag))
     {
-      auto rel = reliabilitySum / smoothLen;
-      auto acc =  constrain ((accuracySum / smoothLen) * 180.0 / PI, 0.0, 31.0);
-      
-      displayRateTime = now + 100; // next refresh
+      reliabilitySum -= reliability[smoothIndex];
+      reliability[smoothIndex] = imu.getCurrentReliability();
+      reliabilitySum += reliability[smoothIndex];
 
-      DBG("smoothed reliability: "); DBGLN(rel);
-      DBG("smoothed accuracy: "); DBGLN(acc);
-
-      // measure battery voltage
-      pinMode(BUTTON_A, INPUT); // disable pullup for button, read voltage
-      float battery = analogRead(VBATPIN);
-      pinMode(BUTTON_A, INPUT_PULLUP); // re-enable pullup for button
-      battery *= 2.0f;    // we divided by 2, so multiply back
-      battery *= 3.3f;  // Multiply by 3.3V, our reference voltage
-      battery /= 1024.0f; // convert to voltage
-      DBG("Battery: "); DBGLN(battery);
-
-      if (displayOn)
-      {
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setCursor (0, 0);
-        display.println ("ImagSens 0.0.1");
-        display.print("Bat: "); display.print(battery, 1); display.println("V");
-        display.println();
-        
-        if (imu.isCalibrating())
-        {
-          display.println("Calibrating...");
-          display.drawRect (88, 0, 16, 32, SSD1306_WHITE); // empty accuracy
-          
-          // reset display timeout
-          displayTimeOut = now + 300000;
-        }
-        else
-        {
-          display.println (net.isConnected() ? "Sending" : "Disconnected");
-            
-          // reported accuracy
-          display.fillRect (88, 0, 16, int (acc) + 1, SSD1306_WHITE);
-        }
-  
-        // reliability
-        display.fillRect (112, 32 - int (rel * 31) - 1, 16, int (rel * 31) + 1, SSD1306_WHITE);
-        display.display();
-      }
+      smoothIndex = (smoothIndex + 1) % smoothLen;
     }
-    
 
     // skip network sending part if disconnected or calibrating
     if (imu.isCalibrating() || ! net.isConnected())
-      return;
+      continue;
 
     if (imu.getDataAsOsc (net.getOscObject()))
     {
       if (! net.sendOsc())
       {
         DBGLN("Sending osc message failed");
-        return;
+        continue;
       }
 
-    // DBGLN("Sensor data successfully sent");
+      // DBGLN("Sensor data successfully sent");
     }
     else
     {
       DBGLN("Osc message construction failed: memory issue?");
     }
   }
-  else
+  
+  // DBGLN("Sensor has no more data for this query loop");
+
+  // time for display update?
+  if (displayOn && now > displayRateTime)
   {
-    // limit querying rate
-    delay (5);
+    // measure battery voltage
+    pinMode(BUTTON_A, INPUT); // disable pullup for button, read voltage
+    float battery = analogRead(VBATPIN);
+    pinMode(BUTTON_A, INPUT_PULLUP); // re-enable pullup for button
+    battery *= 2.0f;    // we divided by 2, so multiply back
+    battery *= 3.3f;  // Multiply by 3.3V, our reference voltage
+    battery /= 1024.0f; // convert to voltage
+    DBG("Battery: "); DBGLN(battery);
 
-    // DBGLN("Sensor has no more data for this query loop");
+    // calculate effective reliability/accuracy to display
+    auto rel = reliabilitySum / smoothLen;
+    auto acc =  constrain ((accuracySum / smoothLen) * 180.0 / PI, 0.0, 31.0);
+    
+    DBG("smoothed reliability: "); DBGLN(rel);
+    DBG("smoothed accuracy: "); DBGLN(acc);
+
+    // display
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor (0, 0);
+    display.println ("ImagSens 0.0.1");
+    display.print("Bat: "); display.print(battery, 1); display.println("V");
+    display.println();
+    
+    if (imu.isCalibrating())
+    {
+      display.println("Calibrating...");
+      display.drawRect (88, 0, 16, 32, SSD1306_WHITE); // empty accuracy
+      
+      // reset display timeout while calibrating
+      displayTimeOut = now + displayAutoOff;
+    }
+    else
+    {
+      display.println (net.isConnected() ? "Sending" : "Disconnected");
+        
+      // reported accuracy
+      display.fillRect (88, 0, 16, int (acc) + 1, SSD1306_WHITE);
+    }
+
+    // reliability
+    display.fillRect (112, 32 - int (rel * 31) - 1, 16, int (rel * 31) + 1, SSD1306_WHITE);
+    display.display();
+
+    // next display refresh
+    displayRateTime += 200;
   }
+  
+  // limit querying rate
+  auto elapsed = millis() - now;
 
+  if (dataReceived)
+    DBG("data received. ");
+  DBG("loop took [ms]: "); DBGLN(elapsed);
+
+  if (dataReceived && elapsed < 10)
+  {
+    // sleep until next tick of our sensor rate (100 Hz for now)
+    // waking up seems to take way to long - not usable atm.
+    //LowPower.idle (10 - elapsed);
+
+    delay (10-elapsed);
+  }
 }

@@ -22,7 +22,7 @@
 #define DBG          ;
 #define DBGLN        ;
 #define DBGHEX       ;
-#endif // #ifdef IMAG_DEBUG
+#endif // IMAG_DEBUG
 
 namespace Imag
 {
@@ -32,7 +32,7 @@ class Debug
     // wait for serial console and init or timeout
     static bool init()
     {
-#ifdef IMAG_DEBUG
+#if IMAG_DEBUG
       // wait for serial to become ready
       for (int i = 0; i < Config::serialTimeout * 5; ++i)
       {
@@ -47,7 +47,7 @@ class Debug
       }
 
       digitalWrite (LED_BUILTIN, LOW);
-#endif // #ifdef IMAG_DEBUG
+#endif // IMAG_DEBUG
 
       return false;
     }
