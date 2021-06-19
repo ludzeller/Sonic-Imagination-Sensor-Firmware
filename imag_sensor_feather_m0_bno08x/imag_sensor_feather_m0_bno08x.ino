@@ -27,8 +27,9 @@ Imag::Imu_BNO08x imu;
 Imag::Net_WINC150x net;
 Adafruit_SSD1306 display { 128, 32, &Wire };   // oled display
 
-EasyButton displayButton(BUTTON_B, 35, true, true);
 EasyButton calibButton(BUTTON_C, 35, true, true);
+EasyButton displayButton(BUTTON_A, 35, true, true);
+auto displayTimeOut = millis() + 300000;
 
 // data types
 static constexpr auto primaryDataType = Imag::Imu::DataType::rotation_arvr;
@@ -51,6 +52,9 @@ void beginCalibration()
 
   imu.beginCalibration();
   imu.printSensorsPerformingDynamicCalibration();
+
+  // reset display timeout
+  displayTimeOut = millis() + 300000;
 }
 
 
@@ -61,6 +65,9 @@ void endCalibration()
 
   imu.endCalibration();
   imu.printSensorsPerformingDynamicCalibration();
+
+  // reset display timeout
+  displayTimeOut = millis() + 300000;
 }
 
 
@@ -69,6 +76,9 @@ void toggleDisplay()
   displayOn = ! displayOn;
   display.clearDisplay();
   display.display();
+
+  // reset display timeout
+  displayTimeOut = millis() + 300000;
 }
 
 
@@ -82,23 +92,26 @@ void setup()
 //  pinMode(BUTTON_B, INPUT_PULLUP);
 //  pinMode(BUTTON_C, INPUT_PULLUP);
 
-  // init debug serial console in case debugging is enabled
-  Imag::Debug::init();
-  DBG("Imagination sensor version ");
-  DBG(Imag::Config::versionMajor); DBG(".");
-  DBG(Imag::Config::versionMinor); DBG(".");
-  DBGLN(Imag::Config::versionSub);
-
   // init display: cleanup/separate!
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
   display.dim(true);
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(2);
   display.setCursor (0, 0);
-  display.print("ImagSens");
+  display.setTextSize(2);
+  display.println("ImagSens");
+  display.setTextSize(1);
+  display.println();
+  display.println("Waiting for serial...");
   display.display();
+
+  // init debug serial console in case debugging is enabled
+  Imag::Debug::init();
+  DBG("Imagination sensor version ");
+  DBG(Imag::Config::versionMajor); DBG(".");
+  DBG(Imag::Config::versionMinor); DBG(".");
+  DBGLN(Imag::Config::versionSub);
 
   // smooth buffers: clean up!
   reliability.fill (0.0f);
@@ -114,7 +127,7 @@ void setup()
   // adapt to mounting orientation of sensor
   //imu.setReorientation (0.0, 0.0, 0.0, 1.0);  // normal, no reorientation
   //imu.setReorientation (-1.0, 0.0, 0.0, 0.0); // upside down front
-  imu.setReorientation (0.0, -1.0, 0.0, 0.0); // upside down back
+ imu.setReorientation (0.0, -1.0, 0.0, 0.0); // upside down back
 
   imu.printSensorsPerformingDynamicCalibration();
 
@@ -143,10 +156,9 @@ void setup()
 
 void loop()
 {
-  static auto displayRateTime = millis();
-  static auto connMsgTime = millis();
-
   auto now = millis();
+  static auto displayRateTime = now;
+  static auto connMsgTime = now;
 
   // update/check current network status
   net.updateConnectionState();
@@ -161,6 +173,10 @@ void loop()
   // eval buttons
   calibButton.read();
   displayButton.read();
+
+  // display timeout
+  if (displayOn && now > displayTimeOut)
+    toggleDisplay();
 
 //  // check for button press
 //  if (digitalRead (BUTTON_A) == LOW)
@@ -227,7 +243,9 @@ void loop()
       DBG("smoothed accuracy: "); DBGLN(acc);
 
       // measure battery voltage
+      pinMode(BUTTON_A, INPUT); // disable pullup for button, read voltage
       float battery = analogRead(VBATPIN);
+      pinMode(BUTTON_A, INPUT_PULLUP); // re-enable pullup for button
       battery *= 2.0f;    // we divided by 2, so multiply back
       battery *= 3.3f;  // Multiply by 3.3V, our reference voltage
       battery /= 1024.0f; // convert to voltage
@@ -246,6 +264,9 @@ void loop()
         {
           display.println("Calibrating...");
           display.drawRect (88, 0, 16, 32, SSD1306_WHITE); // empty accuracy
+          
+          // reset display timeout
+          displayTimeOut = now + 300000;
         }
         else
         {
