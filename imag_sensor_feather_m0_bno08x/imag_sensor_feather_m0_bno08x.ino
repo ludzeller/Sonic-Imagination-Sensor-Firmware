@@ -49,15 +49,18 @@ auto accuracySum = 0.0f;
 // display state
 auto displayOn = true;
 
-void beginCalibration()
+
+void beginOrCancelCalibration()
 {
   if (imu.isCalibrating())
-    return;
+    imu.endCalibration();
+  else
+    imu.beginCalibration();
 
-  imu.beginCalibration();
   imu.printSensorsPerformingDynamicCalibration();
 
-  // reset display timeout
+  // switch on display in case and reset display timeout
+  displayOn = true;
   displayTimeOut = millis() + displayAutoOff;
 }
 
@@ -68,6 +71,7 @@ void endCalibration()
     return;
 
   imu.endCalibration();
+  imu.saveCalibration();
   imu.printSensorsPerformingDynamicCalibration();
 
   // reset display timeout
@@ -88,8 +92,9 @@ void toggleDisplay()
 
 void setup()
 {
-  // prep
+  // led
   pinMode (LED_BUILTIN, OUTPUT);
+  digitalWrite (LED_BUILTIN, LOW);
 
   // cleanup/separate!
 //  pinMode(BUTTON_A, INPUT_PULLUP);
@@ -123,10 +128,6 @@ void setup()
   DBG(Imag::Config::versionMinor); DBG(".");
   DBGLN(Imag::Config::versionSub);
 
-  // smooth buffers: clean up!
-  reliability.fill (0.0f);
-  accuracy.fill (0.0f);
-
   // init sensor
   if (! imu.init())
   {
@@ -137,7 +138,7 @@ void setup()
   // adapt to mounting orientation of sensor
   //imu.setReorientation (0.0, 0.0, 0.0, 1.0);  // normal, no reorientation
   //imu.setReorientation (-1.0, 0.0, 0.0, 0.0); // upside down front
- imu.setReorientation (0.0, -1.0, 0.0, 0.0); // upside down back
+  imu.setReorientation (0.0, -1.0, 0.0, 0.0); // upside down back
 
   imu.printSensorsPerformingDynamicCalibration();
 
@@ -157,10 +158,14 @@ void setup()
   // init button
   calibButton.begin();
   calibButton.onPressed(endCalibration);
-  calibButton.onPressedFor(2000, beginCalibration);
+  calibButton.onPressedFor(2000, beginOrCancelCalibration);
 
   displayButton.begin();
   displayButton.onPressed(toggleDisplay);
+
+  // smooth buffers: clean up!
+  reliability.fill (0.0f);
+  accuracy.fill (0.0f);
 }
 
 

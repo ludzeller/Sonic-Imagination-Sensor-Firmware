@@ -33,6 +33,7 @@ public:
 
   bool beginCalibration() override;
   bool endCalibration() override;
+  bool saveCalibration() override;
   bool isCalibrating() const override { return calibrating; }
 
   // bool setDataRate (int rate) override;

@@ -32,7 +32,9 @@ class Debug
     // wait for serial console and init or timeout
     static bool init()
     {
-#if IMAG_DEBUG
+#if ! IMAG_DEBUG
+      return true;
+#else
       // wait for serial to become ready
       for (int i = 0; i < Config::serialTimeout * 5; ++i)
       {
@@ -47,9 +49,9 @@ class Debug
       }
 
       digitalWrite (LED_BUILTIN, LOW);
-#endif // IMAG_DEBUG
 
       return false;
+#endif // IMAG_DEBUG
     }
 
     // halt machine and indicate by led flickering

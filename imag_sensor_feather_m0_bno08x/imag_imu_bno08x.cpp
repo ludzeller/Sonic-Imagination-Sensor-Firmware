@@ -206,21 +206,25 @@ bool Imu_BNO08x::endCalibration()
 {
   calibrating = false;
 
-  // save calibration
+  // set back to default mode
+  return setDefaultAutoCalibration() && reinit();
+}
+
+
+bool Imu_BNO08x::saveCalibration()
+{
   if (! bno08x.saveDynamicCalibrationData())
   {
     DBGLN("Imu_BNO08x: error saving dynamic calibration data");
     return false;
   }
 
-  // set back to default mode
-  return setDefaultAutoCalibration() && reinit();
+  return true;
 }
-
 
 void Imu_BNO08x::printCalibrationReliability()
 {
-#ifdef IMAG_IMU_DEBUG
+#if IMAG_IMU_DEBUG
   DBG("Imu_BNO08x: current calibration reliability: ");
   switch (reliability)
   {
@@ -246,7 +250,7 @@ void Imu_BNO08x::printCalibrationReliability()
 
 bool Imu_BNO08x::printSensorsPerformingDynamicCalibration()
 {
-#ifdef IMAG_IMU_DEBUG
+#if IMAG_IMU_DEBUG
   auto sensors = bno08x.getSensorsPerformingDynamicCalibration();
 
   if (! sensors)
@@ -260,9 +264,9 @@ bool Imu_BNO08x::printSensorsPerformingDynamicCalibration()
   DBG("Imu_BNO08x: Gyroscope    : "); DBGLN(sensors & SH2_CAL_GYRO   ? "on" : "off");
   DBG("Imu_BNO08x: Magnetometer : "); DBGLN(sensors & SH2_CAL_MAG    ? "on" : "off");
   DBG("Imu_BNO08x: Planar       : "); DBGLN(sensors & SH2_CAL_PLANAR ? "on" : "off");
+#endif // IMAG_IMU_DEBUG
 
   return true;
-#endif // IMAG_IMU_DEBUG
 }
 
 

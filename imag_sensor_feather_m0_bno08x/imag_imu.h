@@ -93,6 +93,7 @@ public:
   // sensor calibration methods, not supported by default
   virtual bool beginCalibration() { return false; }
   virtual bool endCalibration() { return false; }
+  virtual bool saveCalibration() { return false; }
   virtual bool isCalibrating() const { return false; }
 
   // set sensor data rate

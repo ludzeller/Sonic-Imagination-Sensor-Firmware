@@ -26,8 +26,9 @@ namespace Config
   static constexpr auto versionMinor = 0;
   static constexpr auto versionSub   = 1;
   
-  // seconds to wait for serial debug console after boot
+  // seconds to wait at bootup for serial debug console
   static constexpr auto serialTimeout = 5;
+  
   // serial baudrate
   static constexpr auto serialBaudrate = 115200;
 
