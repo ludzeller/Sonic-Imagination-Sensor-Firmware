@@ -48,6 +48,9 @@ bool Net_WINC150x::init (const std::array<byte, 4>& newLocalAddr)
     return false;
   }
 
+  // low power mode
+  WiFi.lowPowerMode();
+
   // indicate we are waiting for connection
   digitalWrite (LED_BUILTIN, HIGH);
 
