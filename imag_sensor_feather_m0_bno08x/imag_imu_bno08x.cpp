@@ -8,6 +8,8 @@
 
 #include "imag_imu_bno08x.h"
 
+#include <MIDIUSB.h>
+
 #if ! IMAG_IMU_DEBUG
 #define DBG          ;
 #define DBGLN        ;
@@ -129,7 +131,7 @@ bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
     case DataType::rotation_game:
     case DataType::rotation_arvr:
     case DataType::rotation_game_arvr:
-      success &= osc.addFloat (sensorValue.un.rotationVector.i); // negate for upside down sensor mounting
+      success &= osc.addFloat (sensorValue.un.rotationVector.i);
       success &= osc.addFloat (sensorValue.un.rotationVector.j);
       success &= osc.addFloat (sensorValue.un.rotationVector.k);
       success &= osc.addFloat (sensorValue.un.rotationVector.real);
@@ -144,25 +146,50 @@ bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
 }
 
 
-bool Imu_BNO08x::setTareFull()
+bool Imu_BNO08x::sendMidi()
 {
-  sh2_TareBasis_t basis = SH2_TARE_BASIS_ROTATION_VECTOR; // default
-
-  if (typesToQuery.size() > 0)
+  // check for rotation data type
+  switch (lastType)
   {
-    if (typesToQuery[0] == DataType::rotation_game)
-      basis = SH2_TARE_BASIS_GAMING_ROTATION_VECTOR;
-    else if (typesToQuery[0] == DataType::rotation_geo)
-      basis = SH2_TARE_BASIS_GEOMAGNETIC_ROTATION_VECTOR;
+    case DataType::rotation:
+    case DataType::rotation_geo:
+    case DataType::rotation_game:
+    case DataType::rotation_arvr:
+    case DataType::rotation_game_arvr:
+      break;
+
+    default:
+      DBGLN("Imu_BNO08x: cannot send midi of non-rotation data type");
+      return false;
   }
 
-  if (! bno08x.setTare (SH2_TARE_X | SH2_TARE_Y | SH2_TARE_Z, basis))
+  auto res = true;
+  std::array<float, 4> quat { sensorValue.un.rotationVector.real,
+                              sensorValue.un.rotationVector.i,
+                              sensorValue.un.rotationVector.j,
+                              sensorValue.un.rotationVector.k };
+  uint8_t msg[4];
+
+  msg[0] = 0x0b;
+  msg[1] = 0xb0 | 0x01; // midi channel 1
+
+  // send each part of quaternion as 14-bit midi CC
+  for (auto i = 0; i < 4; ++i)
   {
-    DBGLN("Imu_BNO08x: error setting tare for level");
-    return false;
+    auto value = uint16_t ((quat[i] + 1.0f) * 8192.0f); // 0..16384, 14bit
+
+    // coarse
+    msg[2] = i + 16; // cc coarse
+    msg[3] = value >> 7 & 0x7f;
+    res &= MidiUSB.write (msg, 4) == 4;
+
+    // fine
+    msg[2] = i + 48; // cc fine
+    msg[3] = value & 0x7f;
+    res &= MidiUSB.write (msg, 4) == 4;
   }
 
-  return true;
+  return res;
 }
 
 
@@ -332,6 +359,32 @@ bool Imu_BNO08x::disableAllSensors()
   }
 
   return res;
+}
+
+
+bool Imu_BNO08x::setTare (bool tareFull)
+{
+  sh2_TareBasis_t basis = SH2_TARE_BASIS_ROTATION_VECTOR; // default
+  uint8_t axes = SH2_TARE_Z;
+
+  if (typesToQuery.size() > 0)
+  {
+    if (typesToQuery[0] == DataType::rotation_game)
+      basis = SH2_TARE_BASIS_GAMING_ROTATION_VECTOR;
+    else if (typesToQuery[0] == DataType::rotation_geo)
+      basis = SH2_TARE_BASIS_GEOMAGNETIC_ROTATION_VECTOR;
+  }
+
+  if (tareFull)
+    axes = SH2_TARE_X | SH2_TARE_Y | SH2_TARE_Z;
+
+  if (! bno08x.setTare (axes, basis))
+  {
+    DBGLN("Imu_BNO08x: error setting tare");
+    return false;
+  }
+
+  return true;
 }
 
 

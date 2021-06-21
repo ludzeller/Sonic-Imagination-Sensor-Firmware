@@ -29,8 +29,9 @@ Imag::Imu_BNO08x imu;
 Imag::Net_WINC150x net;
 Adafruit_SSD1306 display { 128, 32, &Wire };   // oled display
 
-EasyButton calibButton(BUTTON_C, 35, true, true);
 EasyButton displayButton(BUTTON_A, 35, true, true);
+EasyButton tareButton(BUTTON_B, 35, true, true);
+EasyButton calibButton(BUTTON_C, 35, true, true);
 
 static constexpr auto displayAutoOff = 60000UL;
 auto displayTimeOut = millis() + displayAutoOff;
@@ -48,6 +49,16 @@ auto accuracySum = 0.0f;
 
 // display state
 auto displayOn = true;
+
+void toggleDisplay()
+{
+  displayOn = ! displayOn;
+  display.clearDisplay();
+  display.display();
+
+  // reset display timeout
+  displayTimeOut = millis() + displayAutoOff;
+}
 
 
 void beginOrCancelCalibration()
@@ -79,14 +90,19 @@ void endCalibration()
 }
 
 
-void toggleDisplay()
-{
-  displayOn = ! displayOn;
-  display.clearDisplay();
-  display.display();
+bool customNorth = false;
 
-  // reset display timeout
-  displayTimeOut = millis() + displayAutoOff;
+void setTare()
+{
+  if (imu.setTareHeading())
+    customNorth = true;  
+}
+
+
+void resetTare()
+{
+  if (imu.resetTare())
+    customNorth = false;
 }
 
 
@@ -95,11 +111,6 @@ void setup()
   // led
   pinMode (LED_BUILTIN, OUTPUT);
   digitalWrite (LED_BUILTIN, LOW);
-
-  // cleanup/separate!
-//  pinMode(BUTTON_A, INPUT_PULLUP);
-//  pinMode(BUTTON_B, INPUT_PULLUP);
-//  pinMode(BUTTON_C, INPUT_PULLUP);
 
   // init display: cleanup/separate!
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -155,13 +166,17 @@ void setup()
     Imag::Debug::halt();
   }
 
-  // init button
+  // init buttons
+  displayButton.begin();
+  displayButton.onPressed(toggleDisplay);
+
+  tareButton.begin();
+  tareButton.onPressed(setTare);
+  tareButton.onPressedFor(2000, resetTare);
+  
   calibButton.begin();
   calibButton.onPressed(endCalibration);
   calibButton.onPressedFor(2000, beginOrCancelCalibration);
-
-  displayButton.begin();
-  displayButton.onPressed(toggleDisplay);
 
   // smooth buffers: clean up!
   reliability.fill (0.0f);
@@ -189,8 +204,9 @@ void loop()
   }
 
   // eval buttons
-  calibButton.read();
   displayButton.read();
+  tareButton.read();
+  calibButton.read();
 
   // display timeout
   if (displayOn && now > displayTimeOut)
@@ -228,6 +244,10 @@ void loop()
 
       smoothIndex = (smoothIndex + 1) % smoothLen;
     }
+
+    // send midi
+    if (! imu.sendMidi())
+      DBGLN("Sending midi failed");
 
     // skip network sending part if disconnected or calibrating
     if (imu.isCalibrating() || ! net.isConnected())
@@ -275,8 +295,8 @@ void loop()
     display.setTextSize(1);
     display.setCursor (0, 0);
     display.println ("ImagSens 0.0.1");
-    display.print("Bat: "); display.print(battery, 1); display.println("V");
-    display.println();
+    display.print("Battery: "); display.print(battery, 1); display.println("V");
+    display.println(customNorth ? "[Custom North]" : "");
     
     if (imu.isCalibrating())
     {

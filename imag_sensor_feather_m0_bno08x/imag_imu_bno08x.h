@@ -24,10 +24,13 @@ public:
   bool read() override;
   bool getDataAsOsc (LiteOSCParser& osc) const override;
 
-  bool setTareFull() override;
-  // bool setTareHeading() override;
+  // cleanup!
+  bool sendMidi();
+
+  bool setTareFull() override { return setTare (true); }
+  bool setTareHeading() override { return setTare(); }
   // bool setTareTilt() override;
-  bool resetTare() override { return bno08x.resetTare(); }
+  bool resetTare() override { return updateReorientation(); }
   bool saveTare() override { return bno08x.saveTare(); }
   bool setReorientation (double x, double y, double z, double w) override;
 
@@ -49,6 +52,7 @@ private:
   bool updateDataTypesToQuery() override { return updateDataTypesToQuery (typesToQuery); }
   bool updateDataTypesToQuery (const std::vector<DataType>& newTypesToQuery);
   bool disableAllSensors();
+  bool setTare (bool tareFull = false);
 
   const std::array<int, static_cast<int> (DataType::total_num)>& getDataTypeToNativeIdMap() const override { return dataTypeToNativeIdMap; }
 
