@@ -8,8 +8,6 @@
 
 #include "imag_imu_bno08x.h"
 
-#include <MIDIUSB.h>
-
 #if ! IMAG_IMU_DEBUG
 #define DBG          ;
 #define DBGLN        ;
@@ -45,8 +43,7 @@ Imu_BNO08x::Imu_BNO08x()
     accuracy (-1.0f),
     sourceOfReliability (DataType::none),
     sourceOfAccuracy (DataType::none),
-    calibrating (false),
-    reorientation { 0.0, 0.0, 0.0, 1.0 }
+    calibrating (false)
 {
   queryRates.fill (100); // default
 }
@@ -120,87 +117,24 @@ bool Imu_BNO08x::read()
 }
 
 
-bool Imu_BNO08x::getDataAsOsc (LiteOSCParser& osc) const
+bool Imu_BNO08x::getLastData (Quaternion& rotation)
 {
-  auto success = osc.init (oscAddr[static_cast<int> (lastType)]);
-  
-  switch (lastType)
-  {
-    case DataType::rotation:
-    case DataType::rotation_geo:
-    case DataType::rotation_game:
-    case DataType::rotation_arvr:
-    case DataType::rotation_game_arvr:
-      success &= osc.addFloat (sensorValue.un.rotationVector.i);
-      success &= osc.addFloat (sensorValue.un.rotationVector.j);
-      success &= osc.addFloat (sensorValue.un.rotationVector.k);
-      success &= osc.addFloat (sensorValue.un.rotationVector.real);
-      break;
+    if (! isAnyRotationDataType (lastType))
+        return false;
 
-    default:
-      DBGLN("Imu_BNO08x: cannot set osc data due to previously received unknown report type");
-      return false;
-  }
+    rotation.w = sensorValue.un.rotationVector.real;
+    rotation.x = sensorValue.un.rotationVector.i;
+    rotation.y = sensorValue.un.rotationVector.j;
+    rotation.z = sensorValue.un.rotationVector.k;
 
-  return success;
+    return true;
 }
 
 
-bool Imu_BNO08x::sendMidi()
+bool Imu_BNO08x::setReorientation (const Quaternion& newReorientation)
 {
-  // check for rotation data type
-  switch (lastType)
-  {
-    case DataType::rotation:
-    case DataType::rotation_geo:
-    case DataType::rotation_game:
-    case DataType::rotation_arvr:
-    case DataType::rotation_game_arvr:
-      break;
-
-    default:
-      DBGLN("Imu_BNO08x: cannot send midi of non-rotation data type");
-      return false;
-  }
-
-  auto res = true;
-  std::array<float, 4> quat { sensorValue.un.rotationVector.real,
-                              sensorValue.un.rotationVector.i,
-                              sensorValue.un.rotationVector.j,
-                              sensorValue.un.rotationVector.k };
-  uint8_t msg[4];
-
-  msg[0] = 0x0b;
-  msg[1] = 0xb0 | 0x01; // midi channel 1
-
-  // send each part of quaternion as 14-bit midi CC
-  for (auto i = 0; i < 4; ++i)
-  {
-    auto value = uint16_t ((quat[i] + 1.0f) * 8192.0f); // 0..16384, 14bit
-
-    // coarse
-    msg[2] = i + 16; // cc coarse
-    msg[3] = value >> 7 & 0x7f;
-    res &= MidiUSB.write (msg, 4) == 4;
-
-    // fine
-    msg[2] = i + 48; // cc fine
-    msg[3] = value & 0x7f;
-    res &= MidiUSB.write (msg, 4) == 4;
-  }
-
-  return res;
-}
-
-
-bool Imu_BNO08x::setReorientation (double x, double y, double z, double w)
-{
-  reorientation.x = x;
-  reorientation.y = y;
-  reorientation.z = z;
-  reorientation.w = w;
-
-  return updateReorientation();
+    reorientation = newReorientation;
+    return updateReorientation();
 }
 
 
@@ -397,5 +331,7 @@ bool Imu_BNO08x::setDefaultAutoCalibration()
 
 bool Imu_BNO08x::updateReorientation()
 {
-  return sh2_setReorientation (&reorientation) == SH2_OK;
+    auto sh2Quat = quatToSh2Quat (reorientation);
+    
+    return sh2_setReorientation (&sh2Quat) == SH2_OK;
 }

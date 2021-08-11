@@ -22,17 +22,13 @@ public:
   bool init() override;
   bool available() override;
   bool read() override;
-  bool getDataAsOsc (LiteOSCParser& osc) const override;
-
-  // cleanup!
-  bool sendMidi();
+  bool getLastData (Quaternion& rotation) override;
 
   bool setTareFull() override { return setTare (true); }
   bool setTareHeading() override { return setTare(); }
-  // bool setTareTilt() override;
   bool resetTare() override { return updateReorientation(); }
-  bool saveTare() override { return bno08x.saveTare(); }
-  bool setReorientation (double x, double y, double z, double w) override;
+  
+  bool setReorientation (const Quaternion& newReorientation) override;
 
   bool beginCalibration() override;
   bool endCalibration() override;
@@ -61,6 +57,10 @@ private:
 
   // send current reorientation to sensor
   bool updateReorientation();
+
+  // quaternion translation helpers
+  static sh2_Quaternion_t quatToSh2Quat (const Quaternion& quat) { return { quat.x, quat.y, quat.z, quat.w }; }
+  static Quaternion sh2QuatToQuat (const sh2_Quaternion_t& sh2Quat) { return { sh2Quat.w, sh2Quat.x, sh2Quat.y, sh2Quat.z }; }
 
   // bno08x interface object
   Adafruit_BNO08x_ext bno08x;
@@ -94,9 +94,6 @@ private:
 
   // calibration mode flag
   bool calibrating;
-
-  // reorientation quaternion
-  sh2_Quaternion_t reorientation;
 
 }; // class Imu_BNO08x
 
