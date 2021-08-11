@@ -11,6 +11,9 @@
 #include <array>
 #include <vector>
 
+#include <Arduino_Helpers.h>
+#include <AH/Math/Quaternion.hpp>
+
 #include <LiteOSCParser.h>
 using LiteOSCParser = qindesign::osc::LiteOSCParser;
 
@@ -55,6 +58,14 @@ public:
   // osc address to be used for each data type
   static const std::array<const char* const, static_cast<int> (DataType::total_num)> oscAddr;
 
+  // convenience method for datatype classes
+  static bool isAnyRotationDataType (const DataType& dataType)
+  {
+      auto intType = static_cast<int> (dataType);
+
+      return intType >= static_cast<int> (DataType::rotation) && intType <= static_cast<int> (DataType::rotation_game_arvr);
+  }
+
   // constructor
   Imu();
 
@@ -67,6 +78,12 @@ public:
   // query data from sensor if available and set type member
   virtual bool read() = 0;
 
+  // return previously received data
+  virtual bool getLastData (Quaternion& rotation) = 0;
+
+  // get type of previously queried data
+  DataType getLastDataType() const { return lastType; }
+
   // set data types to query from sensor
   bool setDataTypesToQuery (const std::initializer_list<DataType>& dataTypes);
 
@@ -76,19 +93,16 @@ public:
   // runtime check whether a specific data type is supported by sensor
   bool isDataTypeSupported (const DataType type) const { return dataTypeToNativeId (type) != -1; }
 
-  // get type of previously queried data
-  DataType getLastDataType() const { return lastType; }
-
-  // get previously queried data as osc message
-  virtual bool getDataAsOsc (LiteOSCParser& osc) const = 0;
-
   // tare methods, not supported by default
   virtual bool setTareFull() { return false; }
   virtual bool setTareHeading() { return false; }
   virtual bool setTareTilt() { return false; }
   virtual bool resetTare() { return false; }
   virtual bool saveTare() { return false; }
-  virtual bool setReorientation (double x, double y, double z, double w) { return false; }
+
+  // reorientation methods
+  virtual bool setReorientation (const Quaternion& newReorientation) { reorientation = newReorientation; return false; }
+  virtual const Quaternion& getReorientation() const { return reorientation; }
 
   // sensor calibration methods, not supported by default
   virtual bool beginCalibration() { return false; }
@@ -128,6 +142,9 @@ protected:
 
   // initialised flag
   bool initialised;
+
+  // reorientation quaternion
+  Quaternion reorientation;
 
 }; // class Imu
 
