@@ -1,15 +1,17 @@
 /* sensor_firmware_feather_m0
- * 
- * imagination sensor firmware
- * main
- * 
- * 2021-05 rumori
- */
+
+   imagination sensor firmware
+   main
+
+   2021-05 rumori
+*/
 
 #include "imag_config.h"
 #include "imag_debug.h"
 #include "imag_imu_bno08x.h"
 #include "imag_net_winc150x.h"
+
+#include <MIDIUSB.h>
 
 #include <Adafruit_SSD1306.h>
 #include <EasyButton.h>
@@ -36,8 +38,23 @@ EasyButton calibButton(BUTTON_C, 35, true, true);
 static constexpr auto displayAutoOff = 60000UL;
 auto displayTimeOut = millis() + displayAutoOff;
 
-// data types
+// sensor data types
 static constexpr auto primaryDataType = Imag::Imu::DataType::rotation_arvr;
+
+// sensor mounting orientation/output conventions
+// const Quaternion orientNorm { 1.0, 0.0, 0.0, 0.0 };  // normal, no reorientation
+// const Quaternion orientUpsideFront { 0.0, -1.0, 0.0, 0.0 }; // upside down front
+const Quaternion orientUpsideBack { 0.0, 0.0, -1.0, 0.0 }; // upside down back : imagination mounting
+const Quaternion orientMrHat { 0.0, -0.7071, 0.7071, 0.0 }; // upside down back w/ iem mrhat compat rotation
+
+// orientation mode
+const auto modeImagination = "[std]";
+const auto modeIem = "[iem]";
+auto mode = modeImagination;
+
+// custom north offset
+bool customNorth = false;
+Quaternion customNorthOffset;
 
 // reliability && accuracy smoothing buffers
 static constexpr auto smoothLen = 100;
@@ -48,21 +65,40 @@ auto reliabilitySum = 0.0f;
 auto accuracySum = 0.0f;
 
 // display state
-auto displayOn = true;
+auto displayStateOn = true;
+
+
+void resetDisplayTimeout()
+{
+  displayTimeOut = millis() + displayAutoOff;  
+}
+
+
+void displayOff()
+{
+  displayStateOn = false;
+  display.clearDisplay();
+  display.display();
+}
+
+
+void displayOn()
+{
+  displayStateOn = true;
+  resetDisplayTimeout();
+}
+
 
 void toggleDisplay()
 {
-  displayOn = ! displayOn;
-  display.clearDisplay();
-  display.display();
-
-  // reset display timeout
-  displayTimeOut = millis() + displayAutoOff;
+  displayStateOn ? displayOff() : displayOn();
 }
 
 
 void beginOrCancelCalibration()
 {
+  displayOn();
+  
   if (imu.isCalibrating())
     imu.endCalibration();
   else
@@ -70,39 +106,65 @@ void beginOrCancelCalibration()
 
   imu.printSensorsPerformingDynamicCalibration();
 
-  // switch on display in case and reset display timeout
-  displayOn = true;
-  displayTimeOut = millis() + displayAutoOff;
 }
 
 
-void endCalibration()
+void switchModeOrEndCalibration()
 {
-  if (! imu.isCalibrating())
-    return;
+  // reset display timeout
+  displayOn();
 
+  if (! imu.isCalibrating())
+  {
+    // rotate mode
+    if (imu.getReorientation() == orientUpsideBack)
+    {
+      // switch to iem mrhat mode
+      imu.setReorientation (orientMrHat);
+      mode = modeIem;
+    }
+    else
+    {
+      // fallback to imagination
+      imu.setReorientation (orientUpsideBack);
+      mode = modeImagination;
+    }
+    
+    return;
+  }
+  
+  // end calibration
   imu.endCalibration();
   imu.saveCalibration();
   imu.printSensorsPerformingDynamicCalibration();
-
-  // reset display timeout
-  displayTimeOut = millis() + displayAutoOff;
 }
 
 
-bool customNorth = false;
-
 void setTare()
 {
-  if (imu.setTareHeading())
-    customNorth = true;  
+  displayOn();
+
+  if (Imag::Imu::isAnyRotationDataType (imu.getLastDataType()))
+  {
+    Quaternion current;
+
+    imu.getLastData (current);
+
+    // leave only z-rotation
+    // TODO
+
+    customNorthOffset = -current;
+    customNorth = true;
+  }
 }
 
 
 void resetTare()
 {
-  if (imu.resetTare())
-    customNorth = false;
+  displayOn();
+  
+  customNorthOffset = Quaternion::identity();
+  customNorth = false;
 }
 
 
@@ -123,13 +185,13 @@ void setup()
   display.println("ImagSens");
   display.setTextSize(1);
   display.println();
-  
+
 #if IMAG_DEBUG
   display.println("Waiting for serial...");
 #else
   display.println("Initialising...");
 #endif // IMAG_DEBUG
-  
+
   display.display();
 
   // init debug serial console in case debugging is enabled
@@ -147,9 +209,7 @@ void setup()
   }
 
   // adapt to mounting orientation of sensor
-  //imu.setReorientation (0.0, 0.0, 0.0, 1.0);  // normal, no reorientation
-  //imu.setReorientation (-1.0, 0.0, 0.0, 0.0); // upside down front
-  imu.setReorientation (0.0, -1.0, 0.0, 0.0); // upside down back
+  imu.setReorientation (orientUpsideBack); // imagination
 
   imu.printSensorsPerformingDynamicCalibration();
 
@@ -168,15 +228,15 @@ void setup()
 
   // init buttons
   displayButton.begin();
-  displayButton.onPressed(toggleDisplay);
+  displayButton.onPressed (toggleDisplay);
 
   tareButton.begin();
-  tareButton.onPressed(setTare);
-  tareButton.onPressedFor(2000, resetTare);
-  
+  tareButton.onPressed (setTare);
+  tareButton.onPressedFor (2000, resetTare);
+
   calibButton.begin();
-  calibButton.onPressed(endCalibration);
-  calibButton.onPressedFor(2000, beginOrCancelCalibration);
+  calibButton.onPressed (switchModeOrEndCalibration);
+  calibButton.onPressedFor (2000, beginOrCancelCalibration);
 
   // smooth buffers: clean up!
   reliability.fill (0.0f);
@@ -209,8 +269,8 @@ void loop()
   calibButton.read();
 
   // display timeout
-  if (displayOn && now > displayTimeOut)
-    toggleDisplay();
+  if (displayStateOn && now > displayTimeOut)
+    displayOff();
 
   // read sensor data and send
   while (imu.available())
@@ -233,7 +293,7 @@ void loop()
       accuracySum -= accuracy[smoothIndex];
       accuracy[smoothIndex] = imu.getCurrentAccuracy();
       accuracySum += accuracy[smoothIndex];
-      
+
       smoothIndex = (smoothIndex + 1) % smoothLen;
     }
     else if ((imu.isCalibrating() && imu.getLastDataType() == Imag::Imu::DataType::mag))
@@ -245,34 +305,80 @@ void loop()
       smoothIndex = (smoothIndex + 1) % smoothLen;
     }
 
-    // send midi
-    if (! imu.sendMidi())
-      DBGLN("Sending midi failed");
-
-    // skip network sending part if disconnected or calibrating
-    if (imu.isCalibrating() || ! net.isConnected())
-      continue;
-
-    if (imu.getDataAsOsc (net.getOscObject()))
+    // send data
+    if (Imag::Imu::isAnyRotationDataType (imu.getLastDataType()))
     {
-      if (! net.sendOsc())
+      // get data
+      Quaternion rot;
+      auto success = true;
+      
+      imu.getLastData (rot);
+
+      // custom north
+      rot = customNorthOffset + rot;
+
+      // send midi
+      std::array<float, 4> rotAsFloats { rot.w, rot.x, rot.y, rot.z };
+      uint8_t msg[4];
+
+      msg[0] = 0x0b;
+      msg[1] = 0xb0 | 0x01; // midi channel 1
+
+      // send each part of quaternion as 14-bit midi CC
+      for (auto i = 0; i < 4; ++i)
       {
-        DBGLN("Sending osc message failed");
-        continue;
+        auto value = uint16_t ((rotAsFloats[i] + 1.0f) * 8192.0f); // 0..16384, 14bit
+
+        // coarse
+        msg[2] = i + 16; // cc coarse
+        msg[3] = value >> 7 & 0x7f;
+        success &= MidiUSB.write (msg, 4) == 4;
+
+        // fine
+        msg[2] = i + 48; // cc fine
+        msg[3] = value & 0x7f;
+        success &= MidiUSB.write (msg, 4) == 4;
       }
 
-      // DBGLN("Sensor data successfully sent");
+      if (! success)
+        DBGLN("Error sending MIDI data");
+
+      // skip network sending part if disconnected or calibrating
+      if (imu.isCalibrating() || ! net.isConnected())
+        continue;
+
+      // send osc
+      auto& osc = net.getOscObject();
+      success = true;
+    
+      success &= osc.init (Imag::OscAddress::rotation);
+      success &= osc.addFloat (rot.x);
+      success &= osc.addFloat (rot.y);
+      success &= osc.addFloat (rot.z);
+      success &= osc.addFloat (rot.w);
+
+      if (! success)
+      {
+        DBGLN("Error constructing OSC message");
+      }
+      else if (! net.sendOsc())
+      {
+        DBGLN("Sending osc message failed");
+      }
+      else
+      {
+        ; // DBGLN("Sensor data successfully sent");
+      }
     }
     else
-    {
-      DBGLN("Osc message construction failed: memory issue?");
+    { 
+      DBGLN("Cannot send non-rotation data type in current version");
     }
   }
-  
   // DBGLN("Sensor has no more data for this query loop");
 
   // time for display update?
-  if (displayOn && now > displayRateTime)
+  if (displayStateOn && now > displayRateTime)
   {
     // measure battery voltage
     pinMode(BUTTON_A, INPUT); // disable pullup for button, read voltage
@@ -285,8 +391,8 @@ void loop()
 
     // calculate effective reliability/accuracy to display
     auto rel = reliabilitySum / smoothLen;
-    auto acc =  constrain ((accuracySum / smoothLen) * 180.0 / PI, 0.0, 31.0);
-    
+    auto acc =  constrain ((accuracySum / smoothLen) * 180.0 / PI, 0.0, 23.0);
+
     DBG("smoothed reliability: "); DBGLN(rel);
     DBG("smoothed accuracy: "); DBGLN(acc);
 
@@ -294,34 +400,34 @@ void loop()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor (0, 0);
-    display.println ("ImagSens 0.0.1");
-    display.print("Battery: "); display.print(battery, 1); display.println("V");
-    display.println(customNorth ? "[Custom North]" : "");
-    
+    display.print ("ImagSens "); display.print (mode); display.println (" ac  re");
+    display.print ("Battery: "); display.print (battery, 1); display.println ("V");
+    display.println (customNorth ? "[Custom North]" : "");
+
     if (imu.isCalibrating())
     {
       display.println("Calibrating...");
-      display.drawRect (88, 0, 16, 32, SSD1306_WHITE); // empty accuracy
-      
+      display.drawRect (88, 8, 16, 24, SSD1306_WHITE); // empty accuracy
+
       // reset display timeout while calibrating
-      displayTimeOut = now + displayAutoOff;
+      resetDisplayTimeout();
     }
     else
     {
       display.println (net.isConnected() ? "Sending" : "Disconnected");
-        
+
       // reported accuracy
-      display.fillRect (88, 0, 16, int (acc) + 1, SSD1306_WHITE);
+      display.fillRect (88, 8, 16, int (acc) + 1, SSD1306_WHITE);
     }
 
     // reliability
-    display.fillRect (112, 32 - int (rel * 31) - 1, 16, int (rel * 31) + 1, SSD1306_WHITE);
+    display.fillRect (112, 32 - int (rel * 23) - 1, 16, int (rel * 23) + 1, SSD1306_WHITE);
     display.display();
 
     // next display refresh
     displayRateTime += 200;
   }
-  
+
   // limit querying rate
   auto elapsed = millis() - now;
 
@@ -335,6 +441,6 @@ void loop()
     // waking up seems to take way to long - not usable atm.
     //LowPower.idle (10 - elapsed);
 
-    delay (10-elapsed);
+    delay (10 - elapsed);
   }
 }
