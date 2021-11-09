@@ -1,8 +1,25 @@
-# Sonic Imagination - Sensor Firmware
+Sonic Imagination - Sensor Firmware
+===================================
 
 Firmware for Imagination wireless head tracking sensor.
 
-[[_TOC_]]
+![Sensor Prototype](img/sensor_prototype.jpg)
+
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [Sonic Imagination - Sensor Firmware](#sonic-imagination---sensor-firmware)
+- [Use](#use)
+    - [Button actions](#button-actions)
+    - [Calibration procedure](#calibration-procedure)
+- [Build](#build)
+    - [Hardware](#hardware)
+    - [Library dependencies](#library-dependencies)
+    - [Version history](#version-history)
+
+<!-- markdown-toc end -->
+
+# Use
 
 ## Button actions
 
@@ -31,6 +48,8 @@ Calibration procedure according to the [BNO08x sensor documention](https://www.c
 - Save calibration (short-press button C)
 
 The calibration settings will be persistent across power cycles.
+
+# Build
 
 ## Hardware
 
