@@ -10,6 +10,9 @@ Firmware for Imagination wireless head tracking sensor.
 
 - [Sonic Imagination - Sensor Firmware](#sonic-imagination---sensor-firmware)
 - [Use](#use)
+    - [Wireless connection](#wireless-connection)
+    - [OSC communication protocol](#osc-communication-protocol)
+    - [Wired connection (USB MIDI)](#wired-connection-usb-midi)
     - [Button actions](#button-actions)
     - [Calibration procedure](#calibration-procedure)
 - [Build](#build)
@@ -21,6 +24,22 @@ Firmware for Imagination wireless head tracking sensor.
 
 # Use
 
+## Wireless connection
+
+The sensor acts as a wireless access point. The default network SSID is *imagination,* default password is *atmospheres*. The sensor will offer an IP address to the client via DHCP.
+
+After successful connection, the sensor starts streaming the orientation data to the client. Only one client can be connected at a time.
+
+## OSC communication protocol
+
+The orientation data is sent using [OSC (OpenSoundControl)](https://opensoundcontrol.org). Currently, the only message type is `/rot x y z w` (4 floats), which sends the orientation as a quaternion.
+
+## Wired connection (USB MIDI)
+
+When connected to a host via USB, the sensor appears as a MIDI device. The orientation quaternion components are sent as 14-bit controller values using controller numbers 16/48 (w), 17/49 (x), 18/50 (y), 19/51 (z).
+
+The MIDI data is compatible with the IEM [MrHeadTracker](https://git.iem.at/DIY/MrHeadTracker/-/wikis/home) DIY sensor and works fine with the [IEM Plug-in Suite](https://plugins.iem.at/). You may have to switch the orientation convention, see section [Button actions](#button-actions) below.
+
 ## Button actions
 
 Refers to the buttons on the Featherwing OLED peripheral board.
@@ -30,7 +49,7 @@ Refers to the buttons on the Featherwing OLED peripheral board.
   + _Short press:_ Set custom north (current front direction will become the new north reference).
   + _Long press:_ Reset to magnetic north.
 - **C** Orientation conventions and calibration
-  + _Short press:_ Cycle through orientation conventions, e.g. _std_ (Imagination) or _iem_ (MrHat compatibility).
+  + _Short press:_ Cycle through orientation conventions, e.g. _std_ (Imagination) or _iem_ ([MrHeadTracker](https://git.iem.at/DIY/MrHeadTracker/-/wikis/home) compatibility).
   + _Long press:_ Enter calibration mode.
   + When in calibration mode:
     * _Short press:_ Save calibration and leave calibration mode.
