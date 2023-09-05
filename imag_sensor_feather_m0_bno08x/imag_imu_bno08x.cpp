@@ -7,6 +7,7 @@
  */
 
 #include "imag_imu_bno08x.h"
+#include "imag_config.h"
 
 #if ! IMAG_IMU_DEBUG
 #define DBG          ;
@@ -39,12 +40,16 @@ const std::array<int, static_cast<int> (Imu::DataType::total_num)> Imu_BNO08x::d
 
 
 Imu_BNO08x::Imu_BNO08x()
-  : reliability (0),
+  : bno08x (Config::bno08x_reset_pin),
+    reliability (0),
     accuracy (-1.0f),
     sourceOfReliability (DataType::none),
     sourceOfAccuracy (DataType::none),
     calibrating (false)
 {
+  // interrupt pin, only configure for now (unused)
+  pinMode (Config::bno08x_int_pin, INPUT_PULLUP);
+
   queryRates.fill (100); // default
 }
 

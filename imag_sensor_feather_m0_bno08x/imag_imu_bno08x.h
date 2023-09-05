@@ -60,7 +60,7 @@ private:
 
   // quaternion translation helpers
   static sh2_Quaternion_t quatToSh2Quat (const Quaternion& quat) { return { quat.x, quat.y, quat.z, quat.w }; }
-  static Quaternion sh2QuatToQuat (const sh2_Quaternion_t& sh2Quat) { return { sh2Quat.w, sh2Quat.x, sh2Quat.y, sh2Quat.z }; }
+  static Quaternion sh2QuatToQuat (const sh2_Quaternion_t& sh2Quat) { return { float (sh2Quat.w), float (sh2Quat.x), float (sh2Quat.y), float (sh2Quat.z) }; }
 
   // bno08x interface object
   Adafruit_BNO08x_ext bno08x;
