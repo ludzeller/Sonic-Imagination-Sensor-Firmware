@@ -42,15 +42,24 @@ auto displayTimeOut = millis() + displayAutoOff;
 static constexpr auto primaryDataType = Imag::Imu::DataType::rotation_arvr;
 
 // sensor mounting orientation/output conventions
-// const Quaternion orientNorm { 1.0, 0.0, 0.0, 0.0 };  // normal, no reorientation
-// const Quaternion orientUpsideFront { 0.0, -1.0, 0.0, 0.0 }; // upside down front
-const Quaternion orientUpsideBack { 0.0, 0.0, -1.0, 0.0 }; // upside down back : imagination mounting
-const Quaternion orientMrHat { 0.0, -0.7071, 0.7071, 0.0 }; // upside down back w/ iem mrhat compat rotation
+static std::array<Quaternion, 2> sensorOrientations { {
+  { 1.0f, 0.0f, 0.0f, 0.0f },             // normal mounting, no reorientation
+  { 0.7071068f, 0.0f, 0.0f, -0.7071068f }  // normal mounting, no reorientation w/ iem mrhat compat rotation
+  // { 0.0f, -1.0f, 0.0f, 0.0f },         // mounted upside down front
+  // { 0.0f, 0.0f, -1.0f, 0.0f },         // mounted upside down back : imagination prototype mounting
+  // { 0.0f, -0.7071f, 0.7071f, 0.0f }    // mounted upside down back w/ iem mrhat compat rotation
+} };
 
-// orientation mode
-const auto modeImagination = "[std]";
-const auto modeIem = "[iem]";
-auto mode = modeImagination;
+// orientation mode indicators
+static constexpr std::array<const char*, 2> sensorOrientationModes {
+  "[std]", // imagination
+  "[iem]"  // iem MrHat compatible
+};
+
+static_assert (sensorOrientations.size() == sensorOrientationModes.size());
+
+// current orientation mode
+int orientationMode = 0;
 
 // custom north offset
 bool customNorth = false;
@@ -117,18 +126,8 @@ void switchModeOrEndCalibration()
   if (! imu.isCalibrating())
   {
     // rotate mode
-    if (imu.getReorientation() == orientUpsideBack)
-    {
-      // switch to iem mrhat mode
-      imu.setReorientation (orientMrHat);
-      mode = modeIem;
-    }
-    else
-    {
-      // fallback to imagination
-      imu.setReorientation (orientUpsideBack);
-      mode = modeImagination;
-    }
+    orientationMode = ++orientationMode % sensorOrientations.size();
+    imu.setReorientation (sensorOrientations[orientationMode]);
     
     return;
   }
@@ -209,7 +208,7 @@ void setup()
   }
 
   // adapt to mounting orientation of sensor
-  imu.setReorientation (orientUpsideBack); // imagination
+  imu.setReorientation (sensorOrientations[orientationMode]); // initial orientation
 
   imu.printSensorsPerformingDynamicCalibration();
 
@@ -400,7 +399,7 @@ void loop()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor (0, 0);
-    display.print ("ImagSens "); display.print (mode); display.println (" ac  re");
+    display.print ("ImagSens "); display.print (sensorOrientationModes[orientationMode]); display.println (" ac  re");
     display.print ("Battery: "); display.print (battery, 1); display.println ("V");
     display.println (customNorth ? "[Custom North]" : "");
 
