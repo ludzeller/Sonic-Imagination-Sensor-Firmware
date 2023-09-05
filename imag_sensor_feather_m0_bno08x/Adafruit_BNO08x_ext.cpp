@@ -8,6 +8,10 @@
 
 #include "Adafruit_BNO08x_ext.h"
 
+Adafruit_BNO08x_ext::Adafruit_BNO08x_ext (int8_t reset_pin)
+  : Adafruit_BNO08x (reset_pin)
+{}
+
 bool Adafruit_BNO08x_ext::softwareReset()
 {
   return sh2_reinitialize() == SH2_OK;   
