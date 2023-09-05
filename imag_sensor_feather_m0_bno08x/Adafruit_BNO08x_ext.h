@@ -12,7 +12,9 @@
 
 class Adafruit_BNO08x_ext : public Adafruit_BNO08x
 {
-  public:  
+  public:
+    Adafruit_BNO08x_ext (int8_t reset_pin = -1);
+
     bool softwareReset();
 
     bool setTare (uint8_t axes, sh2_TareBasis_t basis);
