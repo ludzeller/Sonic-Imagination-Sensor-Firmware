@@ -47,6 +47,10 @@ namespace Config
   // default wifi ap ssid and key
   static constexpr auto wifiSSID = "imagination";
   static constexpr auto wifiPASS = "atmospheres";
+
+  // bno08x pins
+  static constexpr auto bno08x_int_pin = 11;
+  static constexpr auto bno08x_reset_pin = 12;
 }
 }
 
