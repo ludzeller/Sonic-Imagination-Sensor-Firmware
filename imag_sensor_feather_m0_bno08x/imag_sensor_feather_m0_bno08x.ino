@@ -13,7 +13,8 @@
 
 #include <MIDIUSB.h>
 
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_SSD1306.h> // 128x32 oled display
+#include <Adafruit_SH110X.h>  // 128x64 oled display
 #include <EasyButton.h>
 
 // #include <ArduinoLowPower.h>
@@ -29,7 +30,8 @@
 // member data
 Imag::Imu_BNO08x imu;
 Imag::Net_WINC150x net;
-Adafruit_SSD1306 display { 128, 32, &Wire };   // oled display
+Adafruit_SSD1306 display { 128, 32, &Wire };  // oled display 128x32
+//Adafruit_SH1107 display { 64, 128, &Wire };   // oled display 128x64
 
 EasyButton displayButton(BUTTON_A, 35, true, true);
 EasyButton tareButton(BUTTON_B, 35, true, true);
@@ -174,11 +176,20 @@ void setup()
   digitalWrite (LED_BUILTIN, LOW);
 
   // init display: cleanup/separate!
+  // 128x32
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.dim(true);
-  display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
+
+  // 128x64
+  /*
+  display.begin(0x3C, true);
+  display.setRotation(1);
+  display.setTextColor(SH110X_WHITE);
+  */
+
+  display.clearDisplay();
   display.setCursor (0, 0);
   display.setTextSize(2);
   display.println("ImagSens");
