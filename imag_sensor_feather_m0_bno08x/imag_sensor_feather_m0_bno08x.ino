@@ -13,6 +13,7 @@
 
 #include <MIDIUSB.h>
 
+#include <Adafruit_GPS.h>
 #include <Adafruit_SSD1306.h> // 128x32 oled display
 #include <Adafruit_SH110X.h>  // 128x64 oled display
 #include <EasyButton.h>
@@ -20,6 +21,17 @@
 // #include <ArduinoLowPower.h>
 
 // should go into separate file
+#define GPS_PORT Serial1
+
+namespace Imag
+{
+namespace OscAddress
+{
+  static constexpr auto gps     { "/gps" };     // gps location: latitude, longitude, altitude, speed, angle
+  static constexpr auto gpsinfo { "/gpsinfo" }; // gps status info: fix, accuracy, quality, 3d quality, satellites
+}
+}
+
 #define BUTTON_A  9
 #define BUTTON_B  6
 #define BUTTON_C  5
@@ -30,6 +42,7 @@
 // member data
 Imag::Imu_BNO08x imu;
 Imag::Net_WINC150x net;
+Adafruit_GPS gps (&GPS_PORT);
 Adafruit_SSD1306 display { 128, 32, &Wire };  // oled display 128x32
 //Adafruit_SH1107 display { 64, 128, &Wire };   // oled display 128x64
 
@@ -66,6 +79,11 @@ int orientationMode = 0;
 // custom north offset
 bool customNorth = false;
 Quaternion customNorthOffset;
+
+// gps global fix and position
+int gpsFix = 0;
+float gpsLat = 0.0f, gpsLng = 0.0f;
+float gpsAcc = 0.0f;
 
 // reliability && accuracy smoothing buffers
 static constexpr auto smoothLen = 100;
@@ -175,6 +193,12 @@ void setup()
   pinMode (LED_BUILTIN, OUTPUT);
   digitalWrite (LED_BUILTIN, LOW);
 
+  // init gps: cleanup/separate!
+  gps.begin (9600);
+  gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); // tmc and gga data
+  gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
+  // gps.sendCommand(PGCMD_ANTENNA); // request antenna status update
+
   // init display: cleanup/separate!
   // 128x32
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -212,6 +236,7 @@ void setup()
   DBGLN(Imag::Config::versionSub);
 
   // init sensor
+/*
   if (! imu.init())
   {
     DBGLN("Sensor init failed");
@@ -228,6 +253,7 @@ void setup()
   {
     DBGLN("failed to set custom data types to query");
   }
+*/
 
   // init network transport
   if (! net.init (Imag::Config::localIP))
@@ -259,6 +285,7 @@ void loop()
   auto now = millis();
   static auto displayRateTime = now;
   static auto connMsgTime = now;
+  static auto lastGpsData = now;
 
   // flag for any received data
   auto dataReceived = false;
@@ -283,7 +310,7 @@ void loop()
     displayOff();
 
   // read sensor data and send
-  while (imu.available())
+  while (false /* imu.available() */)
   {
     if (! imu.read())
     {
@@ -387,6 +414,90 @@ void loop()
   }
   // DBGLN("Sensor has no more data for this query loop");
 
+  // read, parse and send gps data
+  gps.read();
+
+  if (gps.newNMEAreceived() && gps.parse (gps.lastNMEA()) && now - lastGpsData > 100)
+  {
+    lastGpsData = now;
+
+    gpsLat = gps.latitudeDegrees; // global
+    gpsLng = gps.longitudeDegrees; // global
+    auto altitude = gps.altitude;
+    auto speed = gps.speed;
+    auto angle = gps.angle;
+
+    gpsFix = int (gps.fix); // global
+    gpsAcc = gps.HDOP; // global
+    auto quality = int (gps.fixquality);
+    auto quality_3d = int (gps.fixquality_3d);
+    auto satellites = int (gps.satellites);
+
+    auto success = true;
+    auto& osc = net.getOscObject();
+
+    // send gps status
+    success &= osc.init (Imag::OscAddress::gpsinfo);
+    success &= osc.addInt (gpsFix);
+    success &= osc.addFloat (gpsAcc);
+    success &= osc.addInt (satellites);
+    success &= osc.addInt (quality);
+    success &= osc.addInt (quality_3d);
+
+      if (! success)
+      {
+        DBGLN("Error constructing OSC message");
+      }
+      else if (! net.sendOsc())
+      {
+        DBGLN("Sending osc message failed");
+      }
+      else
+      {
+        ; // DBGLN("Sensor data successfully sent");
+      }
+
+    // send gps location if we have a fix
+    if (gpsFix)
+    {
+      success = true;
+
+      success &= osc.init (Imag::OscAddress::gps);
+      success &= osc.addFloat (gpsLat);
+      success &= osc.addFloat (gpsLng);
+      success &= osc.addFloat (altitude);
+      success &= osc.addFloat (speed);
+      success &= osc.addFloat (angle);
+
+      if (! success)
+      {
+        DBGLN("Error constructing OSC message");
+      }
+      else if (! net.sendOsc())
+      {
+        DBGLN("Sending osc message failed");
+      }
+      else
+      {
+        ; // DBGLN("Sensor data successfully sent");
+      }
+    }
+
+    DBG ("GPS status:");
+    DBG (" fix: "); DBG (gpsFix);
+    DBG (" accuracy: "); DBG (gpsAcc);
+    DBG (" quality; "); DBG (quality); DBG (" 3d quality; "); DBG (quality_3d);
+    DBG (" satellites: "); DBG (satellites);
+    DBGLN ("");
+
+    DBG ("GPS location:");
+    DBG (" location (lat/lng): "); DBG (gpsLat); DBG (" "); DBG (gpsLng);
+    DBG (" altitude: "); DBG (altitude);
+    DBG (" speed: "); DBG (speed);
+    DBG (" angle: "); DBG (angle);
+    DBGLN ("");
+  }
+
   // time for display update?
   if (displayStateOn && now > displayRateTime)
   {
@@ -410,9 +521,22 @@ void loop()
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor (0, 0);
-    display.print ("ImagSens "); display.print (sensorOrientationModes[orientationMode]); display.println (" ac  re");
-    display.print ("Battery: "); display.print (battery, 1); display.println ("V");
-    display.println (customNorth ? "[Custom North]" : "");
+
+//    display.print ("ImagSens "); display.print (sensorOrientationModes[orientationMode]); display.println (" ac  re");
+
+
+//    display.print ("Battery: "); display.print (battery, 1); display.println ("V");
+
+    // display.println (customNorth ? "[Custom North]" : "");
+
+    if (gpsFix)
+    {
+      display.print ("Accuracy: "); display.println (gpsAcc, 7);
+      display.print ("Lat: "); display.println (gpsLat, 12);
+      display.print ("Lng: "); display.println (gpsLng, 12);
+    }
+    else
+      display.println ("No GPS fix.");
 
     if (imu.isCalibrating())
     {
@@ -424,14 +548,15 @@ void loop()
     }
     else
     {
+      display.print ("Bat: "); display.print (battery, 1); display.print ("V | ");
       display.println (net.isConnected() ? "Sending" : "Disconnected");
 
       // reported accuracy
-      display.fillRect (88, 8, 16, int (acc) + 1, SSD1306_WHITE);
+      // display.fillRect (88, 8, 16, int (acc) + 1, SSD1306_WHITE);
     }
 
     // reliability
-    display.fillRect (112, 32 - int (rel * 23) - 1, 16, int (rel * 23) + 1, SSD1306_WHITE);
+    // display.fillRect (112, 32 - int (rel * 23) - 1, 16, int (rel * 23) + 1, SSD1306_WHITE);
     display.display();
 
     // next display refresh
@@ -443,7 +568,7 @@ void loop()
 
   if (dataReceived)
     DBG("data received. ");
-  DBG("loop took [ms]: "); DBGLN(elapsed);
+  // DBG("loop took [ms]: "); DBGLN(elapsed);
 
   if (dataReceived && elapsed < 10)
   {
