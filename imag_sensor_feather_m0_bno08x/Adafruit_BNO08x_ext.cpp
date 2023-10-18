@@ -48,9 +48,7 @@ bool Adafruit_BNO08x_ext::setSensorsPerformingDynamicCalibration (uint8_t sensor
 }
 
 
-uint8_t Adafruit_BNO08x_ext::getSensorsPerformingDynamicCalibration()
+bool Adafruit_BNO08x_ext::getSensorsPerformingDynamicCalibration (uint8_t& sensors)
 {
-  uint8_t sensors;
-
-  return sh2_getCalConfig (&sensors) == SH2_OK ? sensors : 0;
+  return sh2_getCalConfig (&sensors) == SH2_OK;
 }
