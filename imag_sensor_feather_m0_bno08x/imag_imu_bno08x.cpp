@@ -217,9 +217,9 @@ void Imu_BNO08x::printCalibrationReliability()
 bool Imu_BNO08x::printSensorsPerformingDynamicCalibration()
 {
 #if IMAG_IMU_DEBUG
-  auto sensors = bno08x.getSensorsPerformingDynamicCalibration();
+  uint8_t sensors;
 
-  if (! sensors)
+  if (! bno08x.getSensorsPerformingDynamicCalibration(sensors))
   {
     DBGLN("Imu_BNO08x: querying sensor dynamic calibration state failed");
     return false;

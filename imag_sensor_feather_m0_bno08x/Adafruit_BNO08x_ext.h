@@ -27,7 +27,6 @@ class Adafruit_BNO08x_ext : public Adafruit_BNO08x
     
     bool setSensorsPerformingDynamicCalibration (uint8_t sensors);
 
-    uint8_t getSensorsPerformingDynamicCalibration();
-
+    bool getSensorsPerformingDynamicCalibration (uint8_t& sensors);
 
 }; // class Adafruit_BNO08x_ext
