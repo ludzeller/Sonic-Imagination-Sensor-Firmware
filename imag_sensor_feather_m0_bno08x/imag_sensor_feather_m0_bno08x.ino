@@ -65,7 +65,7 @@ int orientationMode = 0;
 
 // custom north offset
 bool customNorth = false;
-Quaternion customNorthOffset;
+Quaternion customNorthOffset = Quaternion::identity();
 
 // reliability && accuracy smoothing buffers
 static constexpr auto smoothLen = 100;
@@ -171,6 +171,8 @@ void resetTare()
 
 void setup()
 {
+  delay (500); // give the baby some time to settle
+
   // led
   pinMode (LED_BUILTIN, OUTPUT);
   digitalWrite (LED_BUILTIN, LOW);
@@ -178,9 +180,10 @@ void setup()
   // init display: cleanup/separate!
   // 128x32
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  display.dim(true);
-  display.setTextColor(SSD1306_WHITE);
+  display.begin (SSD1306_SWITCHCAPVCC, 0x3C);
+  delay (100);
+  display.dim (true);
+  display.setTextColor (SSD1306_WHITE);
 
   // 128x64
   /*
@@ -188,18 +191,17 @@ void setup()
   display.setRotation(1);
   display.setTextColor(SH110X_WHITE);
   */
-
   display.clearDisplay();
   display.setCursor (0, 0);
-  display.setTextSize(2);
-  display.println("ImagSens");
-  display.setTextSize(1);
+  display.setTextSize (2);
+  display.println ("ImagSens");
+  display.setTextSize (1);
   display.println();
 
 #if IMAG_DEBUG
-  display.println("Waiting for serial...");
+  display.println ("Waiting for serial...");
 #else
-  display.println("Initialising...");
+  display.println ("Initialising...");
 #endif // IMAG_DEBUG
 
   display.display();
