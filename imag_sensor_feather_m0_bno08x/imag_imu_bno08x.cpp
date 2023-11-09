@@ -57,13 +57,16 @@ Imu_BNO08x::Imu_BNO08x()
 {
   // interrupt pin, only configure for now (unused)
   pinMode (Config::bno08x_int_pin, INPUT_PULLUP);
-
   queryRates.fill (100); // default
 }
 
 
 bool Imu_BNO08x::init()
 {
+  // seems to be required before begin_I2C() for warm start
+  bno08x.hardwareReset();
+  delay(100); // apparently important
+
   // init i2c, checks whether chip is present
   if (! bno08x.begin_I2C())
   {
@@ -71,11 +74,10 @@ bool Imu_BNO08x::init()
     return false;
   }
 
-  // set sensors which do auto-calibration
-  // putting this in reinit() apparently crashes the sensor when done repeatedly, strange...
-  if (! setDefaultAutoCalibration())
+  // make sure reset took place
+  if (! bno08x.wasReset())
   {
-    DBGLN("Imu_BNO08x: error setting default auto calibration sensors");
+    DBGLN("Imu_BNO08x: reset flag not set after i2c init (involving a hardware reset)");
     return false;
   }
 
@@ -88,7 +90,7 @@ bool Imu_BNO08x::available()
   // restore reports if sensor was reset
   if (bno08x.wasReset() && ! reinit())
   {
-    DBGLN("Imu_BNO08x: reinit after reset failed");
+    DBGLN ("Imu_BNO08x: reinit after reset failed");
     return false;
   }
 
@@ -181,7 +183,7 @@ bool Imu_BNO08x::endCalibration()
   calibrating = false;
 
   // set back to default mode
-  return setDefaultAutoCalibration() && reinit();
+  return reinit();
 }
 
 
@@ -247,6 +249,22 @@ bool Imu_BNO08x::printSensorsPerformingDynamicCalibration()
 bool Imu_BNO08x::reinit()
 {
   initialised = false;
+
+  // seems to prevent hangs of following setDefaultAutoCalibration() at warm start
+  if (! bno08x.softwareReset())
+  {
+    DBGLN("Imu_BNO08x: error soft-resetting sensor");
+    return false;
+  }
+
+  delay (100);
+
+  // set sensors which do auto-calibration
+  if (! setDefaultAutoCalibration())
+  {
+    DBGLN("Imu_BNO08x: error setting default auto calibration sensors");
+    return false;
+  }
 
   // enable reports
   if (! updateDataTypesToQuery())
