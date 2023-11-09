@@ -207,9 +207,9 @@ void setup()
   // init debug serial console in case debugging is enabled
   Imag::Debug::init();
   DBG("Imagination sensor version ");
-  DBG(Imag::Config::versionMajor); DBG(".");
-  DBG(Imag::Config::versionMinor); DBG(".");
-  DBGLN(Imag::Config::versionSub);
+  DBGN(Imag::Config::versionMajor); DBG(".");
+  DBGN(Imag::Config::versionMinor); DBG(".");
+  DBGNLN(Imag::Config::versionSub);
 
   // init sensor
   if (! imu.init())
@@ -397,14 +397,14 @@ void loop()
     battery *= 2.0f;    // we divided by 2, so multiply back
     battery *= 3.3f;  // Multiply by 3.3V, our reference voltage
     battery /= 1024.0f; // convert to voltage
-    DBG("Battery: "); DBGLN(battery);
+    DBG("Battery: "); DBGNLN(battery);
 
     // calculate effective reliability/accuracy to display
     auto rel = reliabilitySum / smoothLen;
     auto acc =  constrain ((accuracySum / smoothLen) * 180.0 / PI, 0.0, 23.0);
 
-    DBG("smoothed reliability: "); DBGLN(rel);
-    DBG("smoothed accuracy: "); DBGLN(acc);
+    DBG("smoothed reliability: "); DBGNLN(rel);
+    DBG("smoothed accuracy: "); DBGNLN(acc);
 
     // display
     display.clearDisplay();
@@ -443,7 +443,7 @@ void loop()
 
   if (dataReceived)
     DBG("data received. ");
-  DBG("loop took [ms]: "); DBGLN(elapsed);
+  DBG("loop took [ms]: "); DBGNLN(elapsed);
 
   if (dataReceived && elapsed < 10)
   {
