@@ -8,10 +8,18 @@
 
 #include "imag_net_winc150x.h"
 
+// redefine DBG output macros for this module only
 #if ! IMAG_NET_DEBUG
-#define DBG          ;
-#define DBGLN        ;
-#define DBGHEX       ;
+#undef DBG
+#define DBG       ;
+#undef DBGLN
+#define DBGLN     ;
+#undef DBGN
+#define DBGN      ;
+#undef DBGNLN
+#define DBGNLN    ;
+#undef DBGHEX
+#define DBGHEX    ;
 #endif // #if ! IMAG_NET_DEBUG
 
 using namespace Imag;

@@ -15,12 +15,16 @@
 
 // debug print to serial
 #if IMAG_DEBUG
-#define DBG(DATA)    Serial.print (DATA)
-#define DBGLN(DATA)  Serial.println (DATA)
-#define DBGHEX(DATA) Serial.print (DATA, HEX)
+#define DBG(STR)     Serial.print (F(STR))
+#define DBGLN(STR)   Serial.println (F(STR))
+#define DBGN(VAR)    Serial.print (VAR)
+#define DBGNLN(VAR)  Serial.println (VAR)
+#define DBGHEX(NUM)  Serial.print (NUM, HEX)
 #else
 #define DBG          ;
 #define DBGLN        ;
+#define DBGN         ;
+#define DBGNLN       ;
 #define DBGHEX       ;
 #endif // IMAG_DEBUG
 

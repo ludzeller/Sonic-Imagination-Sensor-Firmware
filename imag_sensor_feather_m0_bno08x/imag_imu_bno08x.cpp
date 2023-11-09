@@ -9,10 +9,18 @@
 #include "imag_imu_bno08x.h"
 #include "imag_config.h"
 
+// redefine DBG output macros for this module only
 #if ! IMAG_IMU_DEBUG
-#define DBG          ;
-#define DBGLN        ;
-#define DBGHEX       ;
+#undef DBG
+#define DBG       ;
+#undef DBGLN
+#define DBGLN     ;
+#undef DBGN
+#define DBGN      ;
+#undef DBGNLN
+#define DBGNLN    ;
+#undef DBGHEX
+#define DBGHEX    ;
 #endif // #if ! IMAG_IMU_DEBUG
 
 using namespace Imag;
