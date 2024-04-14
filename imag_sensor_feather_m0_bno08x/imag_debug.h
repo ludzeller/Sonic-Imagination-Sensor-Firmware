@@ -6,8 +6,7 @@
  * 2021-05 rumori
  */
 
-#ifndef IMAG_DEBUG_H_INCLUDED
-#define IMAG_DEBUG_H_INCLUDED
+#pragma once
 
 #include <Arduino.h>
 
@@ -28,48 +27,45 @@
 #define DBGHEX       ;
 #endif // IMAG_DEBUG
 
-namespace Imag
+namespace imag
 {
-class Debug
+struct Debug
 {
-  public:
     // wait for serial console and init or timeout
     static bool init()
     {
 #if ! IMAG_DEBUG
-      return true;
+        return true;
 #else
-      // wait for serial to become ready
-      for (int i = 0; i < Config::serialTimeout * 5; ++i)
-      {
-        if (Serial)
+        // wait for serial to become ready
+        for (int i = 0; i < config::serialTimeout * 5; ++i)
         {
-          digitalWrite (LED_BUILTIN, LOW);
-          Serial.begin (Config::serialBaudrate);
-          return true;
+            if (Serial)
+            {
+                digitalWrite (LED_BUILTIN, LOW);
+                Serial.begin (config::serialBaudrate);
+                return true;
+            }
+            delay (200);
+            digitalWrite (LED_BUILTIN, ! digitalRead (LED_BUILTIN));
         }
-        delay (200);
-        digitalWrite (LED_BUILTIN, ! digitalRead (LED_BUILTIN));
-      }
 
-      digitalWrite (LED_BUILTIN, LOW);
+        digitalWrite (LED_BUILTIN, LOW);
 
-      return false;
+        return false;
 #endif // IMAG_DEBUG
     }
 
     // halt machine and indicate by led flickering
     static void halt()
     {
-      while (1)
-      {
-        digitalWrite (LED_BUILTIN, ! digitalRead (LED_BUILTIN));
-        delay (50);
-      }
+        while (1)
+        {
+            digitalWrite (LED_BUILTIN, ! digitalRead (LED_BUILTIN));
+            delay (50);
+        }
     }
 
-}; // class Debug
+}; // struct Debug
 
-} // namespace Imag
-
-#endif // #ifndef IMAG_DEBUG_H_INCLUDED
+} // namespace imag
