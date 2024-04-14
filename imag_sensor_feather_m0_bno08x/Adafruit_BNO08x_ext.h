@@ -3,7 +3,7 @@
  * extension of Adafruit's BNO08x sensor interface
  * part of imagination sensor firmware
  * 
- * 2021-05 rumori
+ * 2021-2024 rumori
  */
 
 #pragma once
@@ -12,10 +12,12 @@
 
 class Adafruit_BNO08x_ext : public Adafruit_BNO08x
 {
-  public:
+public:
     Adafruit_BNO08x_ext (int8_t reset_pin = -1);
 
     bool softwareReset();
+
+    bool deviceReset();
 
     bool setTare (uint8_t axes, sh2_TareBasis_t basis);
 
