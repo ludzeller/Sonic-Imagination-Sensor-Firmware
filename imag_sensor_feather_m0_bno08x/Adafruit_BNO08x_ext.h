@@ -27,6 +27,8 @@ public:
 
     bool saveDynamicCalibrationData();
     
+    bool clearDynamicCalibrationData();
+
     bool setSensorsPerformingDynamicCalibration (uint8_t sensors);
 
     bool getSensorsPerformingDynamicCalibration (uint8_t& sensors);
