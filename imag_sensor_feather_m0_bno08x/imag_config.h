@@ -12,22 +12,33 @@
 #include <array>
 
 // enable debugging output?
-#define IMAG_DEBUG     0 // general debug
+#define IMAG_DEBUG     1 // general debug
 #define IMAG_IMU_DEBUG 0 // Imu low-level debug
 #define IMAG_NET_DEBUG 0 // Wifi low-level debug
+#define IMAG_DISPLAY_DEBUG 0 // display low-level debug
+#define IMAG_BATTERY_DEBUG 1 // battery low-level debug
 
 namespace imag::config
 {
+// sensor-individual configuration
+static constexpr auto sensorIndex = 10;
+
 // version information
 static constexpr auto versionMajor = 0;
 static constexpr auto versionMinor = 5;
-static constexpr auto versionSub   = 0;
-  
+static constexpr auto versionSub   = 1;
+
 // seconds to wait at bootup for serial debug console
 static constexpr auto serialTimeout = 5;
   
 // serial baudrate
 static constexpr auto serialBaudrate = 115200;
+
+// display configuration
+struct Display
+{
+    static constexpr uint8_t i2cAddr = 0x3c;
+};
 
 // network configuration
 struct Net
@@ -42,17 +53,32 @@ struct Net
 // wifi configuration
 struct WiFi
 {
-    static constexpr auto ssid = "imagination";
+    static constexpr auto ssid = "ImagSens";
     static constexpr auto key = "atmospheres";
-    static constexpr uint8_t channel = 1;
+    static constexpr uint8_t channel = sensorIndex;
 };
 
 // bno08x hardware configuration
 struct BNO08x
 {
-static constexpr uint8_t i2cAddr = 0x4b; // adafruit breakout: 0x4a, slimevr: 0x4b
-static constexpr uint8_t intPin = 11;
-static constexpr uint8_t resetPin = 12;
+    static constexpr uint8_t i2cAddr = 0x4a; // adafruit breakout: 0x4a, slimevr: 0x4b
+    static constexpr uint8_t intPin = 11;
+    static constexpr uint8_t resetPin = 12;
+};
+
+// button configuration
+struct Button
+{
+    static constexpr uint8_t pinA = 9;
+    static constexpr uint8_t pinB = 6;
+    static constexpr uint8_t pinC = 5;
+    static constexpr uint32_t debounce = 35;
+};
+
+// battery measurement configuration
+struct Battery
+{
+    static constexpr uint8_t pin = A7; // == D9, so be aware of concurrency w/ button A
 };
 
 } // namespace imag::config
