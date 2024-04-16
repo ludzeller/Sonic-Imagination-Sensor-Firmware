@@ -48,6 +48,12 @@ bool Adafruit_BNO08x_ext::saveDynamicCalibrationData()
 }
 
 
+bool Adafruit_BNO08x_ext::clearDynamicCalibrationData()
+{
+    return sh2_clearDcdAndReset() == SH2_OK;
+}
+
+
 bool Adafruit_BNO08x_ext::setSensorsPerformingDynamicCalibration (uint8_t sensors)
 {
     return sh2_setCalConfig (uint8_t (sensors)) == SH2_OK;
