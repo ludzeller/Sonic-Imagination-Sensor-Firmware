@@ -104,6 +104,7 @@ public:
     bool beginCalibration();
     bool endCalibration();
     bool saveCalibration();
+    bool clearCalibration();
     bool isCalibrating() const { return calibrating; }
 
     // set sensor data rate

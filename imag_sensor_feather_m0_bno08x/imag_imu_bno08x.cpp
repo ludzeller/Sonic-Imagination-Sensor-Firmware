@@ -207,8 +207,26 @@ bool BNO08x::saveCalibration()
         return false;
     }
 
-    return true;
+    delay (250);
+
+    return reinit();
 }
+
+
+bool BNO08x::clearCalibration()
+{
+    if (! bno08x.clearDynamicCalibrationData())
+    {
+        DBGLN("BNO08x: error clearing dynamic calibration data");
+        return false;
+    }
+
+    // this will have caused a reset, so reinit.
+    delay (250);
+
+    return reinit();
+}
+
 
 void BNO08x::printCalibrationReliability()
 {
