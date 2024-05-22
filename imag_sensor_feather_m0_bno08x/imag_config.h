@@ -23,6 +23,12 @@ namespace imag::config
 // sensor-individual configuration
 static constexpr auto sensorIndex = 10;
 
+// exhibition mode?
+/* Setting this to true will change the button behaviour to prevent
+   unintended configuration changes.
+ */
+static constexpr auto guidedAccess = false;
+
 // version information
 static constexpr auto versionMajor = 0;
 static constexpr auto versionMinor = 5;
