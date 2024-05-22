@@ -12,16 +12,16 @@
 #include <array>
 
 // enable debugging output?
-#define IMAG_DEBUG     1 // general debug
+#define IMAG_DEBUG     0 // general debug
 #define IMAG_IMU_DEBUG 0 // Imu low-level debug
 #define IMAG_NET_DEBUG 0 // Wifi low-level debug
 #define IMAG_DISPLAY_DEBUG 0 // display low-level debug
-#define IMAG_BATTERY_DEBUG 1 // battery low-level debug
+#define IMAG_BATTERY_DEBUG 0 // battery low-level debug
 
 namespace imag::config
 {
 // sensor-individual configuration
-static constexpr auto sensorIndex = 10;
+static constexpr auto sensorIndex = 7;
 
 // exhibition mode?
 /* Setting this to true will change the button behaviour to prevent
@@ -67,7 +67,7 @@ struct WiFi
 // bno08x hardware configuration
 struct BNO08x
 {
-    static constexpr uint8_t i2cAddr = 0x4a; // adafruit breakout: 0x4a, slimevr: 0x4b
+    static constexpr uint8_t i2cAddr = 0x4b; // adafruit breakout: 0x4a, slimevr: 0x4b
     static constexpr uint8_t intPin = 11;
     static constexpr uint8_t resetPin = 12;
 };
