@@ -36,7 +36,7 @@ BNO08x::BNO08x (uint8_t resetPin, uint8_t intPin)
       sourceOfAccuracy (DataType::none),
       calibrating (false)
 {
-    // interrupt pin, only configure for now (unused)
+    // configure interrupt pin
     pinMode (intPin, INPUT_PULLUP);
     queryRates.fill (100);
 }
