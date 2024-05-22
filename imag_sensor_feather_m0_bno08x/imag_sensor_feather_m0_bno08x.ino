@@ -163,10 +163,20 @@ void attachButtonsNorm()
 {
     buttonA.onPressed (toggleDisplay);
 
-    buttonB.onPressed (setReorientation);
-    buttonB.onPressedFor (2000, resetReorientation);
+    if constexpr (imag::config::guidedAccess)
+    {
+        buttonB.onPressed (resetReorientation);
+        buttonB.onPressedFor (2000, setReorientation);
+    }
+    else
+    {
+        buttonB.onPressed (setReorientation);
+        buttonB.onPressedFor (2000, resetReorientation);
+    }
 
-    buttonC.onPressed (cycleOrientationMode);
+    if constexpr (! imag::config::guidedAccess)
+        buttonC.onPressed (cycleOrientationMode);
+
     buttonC.onPressedFor (2000, beginCalibration);
 }
 
