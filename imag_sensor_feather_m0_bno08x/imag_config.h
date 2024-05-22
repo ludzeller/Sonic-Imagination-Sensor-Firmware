@@ -32,7 +32,7 @@ static constexpr auto guidedAccess = false;
 // version information
 static constexpr auto versionMajor = 0;
 static constexpr auto versionMinor = 5;
-static constexpr auto versionSub   = 1;
+static constexpr auto versionSub   = 3;
 
 // seconds to wait at bootup for serial debug console
 static constexpr auto serialTimeout = 5;
