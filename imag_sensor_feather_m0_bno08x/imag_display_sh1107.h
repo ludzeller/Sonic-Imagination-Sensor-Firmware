@@ -26,6 +26,9 @@ public:
     static constexpr auto displayRefresh = 250UL;
     static constexpr auto displayAutoOff = 60000UL;
 
+    // battery low voltage (should possibly go into config)
+    static constexpr auto batteryLowVoltage = 3.7f;
+
     // constructor
     SH1107 (TwoWire* twi);
 
@@ -61,7 +64,10 @@ private:
     
     // show calibration page
     void showCalibration();
-    
+
+    // print battery state
+    void printBattery();
+
     // display object
     Adafruit_SH1107 display;
 
