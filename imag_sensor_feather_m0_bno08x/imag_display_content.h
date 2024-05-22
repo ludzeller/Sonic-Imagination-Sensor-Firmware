@@ -74,6 +74,8 @@ struct Message
     {
         // battery label
         static constexpr auto label = "Bat ";
+        static constexpr auto low = "Bat Low";
+        static constexpr auto lowLong = "BATTERY LOW";
     };
 
     struct Calibration
@@ -113,7 +115,8 @@ struct Content
 
     Quaternion rotation;
 
-    uint8_t battery = 0;
+    float batteryVoltage = 0.0f;
+    uint8_t batteryPercentage = 0;
 };
 
 } // namespace imag::display

@@ -184,22 +184,34 @@ void attachButtonsCalibration()
 }
 
 
+// update battery status to display content
+void updateBattery()
+{
+    battery.update();
+    oled.getContent().batteryVoltage = battery.getVoltage();
+    oled.getContent().batteryPercentage = battery.getPercentage();
+}
+
+
 void setup()
 {
-    delay (500); // give the baby some time to settle
-
     Wire.setClock(200000L);   // I2C speed, 400 kHz is a little fast for Arduino's pullups
 
     // led
     pinMode (LED_BUILTIN, OUTPUT);
     digitalWrite (LED_BUILTIN, LOW);
 
+    delay (250); // give the baby some time to settle
+
     // oled display
     oled.init (imag::config::Display::i2cAddr);
     oled.getContent().version = versionString.c_str();
     oled.getContent().ssid = ssid.c_str();
+    updateBattery(); // read initially for low bat splash warning
     oled.setPage (imag::display::Page::splash);
     oled.update();
+
+    delay (100);
 
     // init debug serial console in case debugging is enabled
     imag::Debug::init();
@@ -270,7 +282,7 @@ void loop()
     oled.update();
 
     // battery read cycle if due
-    battery.update();
+    updateBattery();
 
     // read sensor data and send
     while (imu.read())
@@ -349,8 +361,6 @@ void loop()
     // DBGLN("Sensor has no more data for this query loop");
 
     { // update remaining display data
-        oled.getContent().battery = battery.getPercentage();
-
         oled.getContent().reliability = reliability.get();
         oled.getContent().accuracy = constrain (accuracy.get(), 0.0f, 0.5f * PI) / (0.5f * PI); // constrain to 0..90 deg
 
