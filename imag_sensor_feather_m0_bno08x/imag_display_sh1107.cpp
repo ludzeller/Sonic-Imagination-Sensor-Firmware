@@ -121,6 +121,11 @@ void SH1107::showSplash()
     display.println (Message::Splash::initialising);
 #endif
 
+    display.println();
+
+    if (content.batteryVoltage < batteryLowVoltage)
+        display.print (Message::Battery::lowLong);
+
     display.display();
 }
 
@@ -136,6 +141,9 @@ void SH1107::showMain()
     // wlan ssid
     display.setCursor (0, 0);
     display.print (content.ssid);
+
+    // battery
+    printBattery();
 
     { // sender
         display.setCursor (0 * charWidth, lineSkip);
@@ -174,13 +182,6 @@ void SH1107::showMain()
         display.setCursor (textX, 1 * 28 + lineSkip);
         display.print (content.customNorth ? Message::Main::customNorth : Message::Main::magneticNorth);
     } // button stuff
-
-    { // battery
-        display.setCursor (0, displayHeight - 8);
-        display.print (Message::Battery::label);
-        display.print (content.battery);
-        display.print ("%");
-    } // battery
 
     { // reliabilty/accuracy
         static constexpr auto maxLength = 42;
@@ -235,6 +236,9 @@ void SH1107::showCalibration()
     display.setCursor (0, 0);
     display.print (content.ssid);
 
+    //battery
+    printBattery();
+
     { // calibration label
         display.setCursor (0 * charWidth, lineSkip);
         display.print (Message::Calibration::label);
@@ -257,13 +261,6 @@ void SH1107::showCalibration()
         }
     } // button stuff
 
-    { // battery
-        display.setCursor (0, displayHeight - 8);
-        display.print (Message::Battery::label);
-        display.print (content.battery);
-        display.print ("%");
-    } // battery
-
     { // calibration reliabilty
         static constexpr auto maxLength = 80;
         const auto relLength = round (content.reliability * maxLength);
@@ -276,6 +273,23 @@ void SH1107::showCalibration()
     } // calibration reliabilty
 
     display.display();
+}
+
+
+void SH1107::printBattery()
+{
+    display.setCursor (0, displayHeight - 8);
+
+    if (content.batteryVoltage < batteryLowVoltage)
+    {
+        display.print (Message::Battery::low);
+    }
+    else
+    {
+        display.print (Message::Battery::label);
+        display.print (content.batteryVoltage, 1);
+        display.print ("V");
+    }
 }
 
 } // namespace imag::display
